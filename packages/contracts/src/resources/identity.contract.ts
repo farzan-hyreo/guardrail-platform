@@ -1,10 +1,14 @@
 /**
  * SOT: member-contract, invitation-contract, identity-wire
- * WHERE services/identity
+ * WHAT   Input and output schemas for every member and invitation operation.
+ * WHY    Gateway and service parse the same schema, so neither can drift from the other.
+ * HOW    member.create answers `{accepted: true}` rather than the invitation: it is a
+ *        command, and nothing has happened yet when the gateway replies.
+ * WHERE  services/identity
  */
-import { z } from "zod";
 
 import { ORG_ROLES } from "@guardrail/registry";
+import { z } from "zod";
 
 export const memberDto = z.object({
   id: z.string(),
@@ -24,6 +28,14 @@ export const memberContract = {
   create: {
     input: z.object({ email: z.string().email(), role: z.enum(ORG_ROLES) }),
     output: z.object({ accepted: z.literal(true), requestId: z.string() }),
+  },
+  /**
+   * Changing a role. The registry gates this at owner; the service refuses a role above the
+   * caller's own as well, so the two agree instead of one trusting the other.
+   */
+  update: {
+    input: z.object({ memberId: z.string(), role: z.enum(ORG_ROLES) }),
+    output: memberDto,
   },
   delete: { input: z.object({ memberId: z.string() }), output: z.object({ id: z.string() }) },
 } as const;

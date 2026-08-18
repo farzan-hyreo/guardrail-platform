@@ -32,7 +32,10 @@ browser ──HTTP──▶ Next.js gateway ──NATS──▶ services ──�
 - **`packages/contracts`** is the wire. Input/output schemas plus the signed envelope.
   `ContractMap` is a mapped type over the registry, so a resource without a contract does
   not compile.
-- **`apps/web/src/gateway`** authorises and routes. It has no database dependency at all.
+- **`apps/web/src/gateway`** authorises and routes. It cannot import a database directly
+  (Biome blocks `@guardrail/db`, `drizzle-orm`, `pg`), and the one indirect path -
+  `@guardrail/auth`'s Drizzle client - is reachable from exactly one file outside the
+  gateway, the Better Auth route. See `server-boundaries` for the exact shape of that.
 - **`services/*`** execute. Each owns its own tables and migrations.
 - **`packages/guardrail`** is the block, split in two: `gateway.ts` decides, `service.ts`
   enforces what was decided.

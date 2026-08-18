@@ -6,7 +6,7 @@
  *        The gateway does not depend on this package at all: its package.json has no line
  *        for it, which is a stronger guarantee than any lint rule.
  * HOW    createDb(schema) in the owning service. Migrations live with the service too.
- * WHERE  services/*/src/db.ts, @guardrail/auth
+ * WHERE  services/<name>/src/db.ts, @guardrail/auth
  */
 import "server-only";
 

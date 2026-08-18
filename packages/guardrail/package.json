@@ -15,9 +15,11 @@
     "@guardrail/contracts": "workspace:*",
     "@guardrail/registry": "workspace:*",
     "@guardrail/transport": "workspace:*",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   }
 }

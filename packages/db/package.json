@@ -12,7 +12,8 @@
   "dependencies": {
     "drizzle-orm": "^0.44.0",
     "pg": "^8.13.0",
-    "@guardrail/env": "workspace:*"
+    "@guardrail/env": "workspace:*",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",

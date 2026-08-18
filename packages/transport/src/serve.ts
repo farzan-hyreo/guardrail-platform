@@ -3,7 +3,12 @@
  * WHAT   The two ways a service receives work: rpc subscriptions and durable consumers.
  * WHY    Queue groups give you horizontal scale for free - start a second replica and the
  *        work splits. Durable consumers give you at-least-once for commands.
- * WHERE  services/*/src/index.ts
+ * HOW    Nothing here is allowed to float. `decode` on hostile bytes throws, and a throw
+ *        inside a detached async callback is an unhandled rejection that takes the process
+ *        down and leaves the caller waiting for a reply that never comes. Every delivery
+ *        runs inside a try, and the service hands in a pre-signed refusal to send when it
+ *        could not produce one itself - only the service holds the signing secret.
+ * WHERE  services/<name>/src/index.ts
  */
 import "server-only";
 
@@ -11,13 +16,15 @@ import { AckPolicy } from "@nats-io/jetstream";
 
 import { connection, decode, encode, js, jsm } from "./connection";
 
-export type RpcHandler = (raw: unknown) => Promise<unknown>;
+export type RpcHandler = (raw: unknown, subject: string) => Promise<unknown>;
 
 /** Subscribe to an rpc subject in a queue group. Returns an unsubscribe function. */
 export async function serveRpc(args: {
   subject: string;
   queue: string;
   handler: RpcHandler;
+  /** Coded refusal for bytes that never became a reply. Built and signed by the service. */
+  unreadable: unknown;
 }): Promise<() => void> {
   const nc = await connection();
   const subscription = nc.subscribe(args.subject, {
@@ -28,8 +35,18 @@ export async function serveRpc(args: {
         return;
       }
       void (async () => {
-        const reply = await args.handler(decode(message.data));
-        message.respond(encode(reply));
+        try {
+          const reply = await args.handler(decode(message.data), message.subject);
+          message.respond(encode(reply));
+        } catch (failure) {
+          console.error(`[rpc] ${args.subject}`, failure);
+          try {
+            message.respond(encode(args.unreadable));
+          } catch (responseFailure) {
+            // The caller has already given up or the connection is gone. Nothing to send to.
+            console.error(`[rpc] ${args.subject} could not refuse`, responseFailure);
+          }
+        }
       })();
     },
   });

@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "tsx watch --env-file=../../infra/nats/creds/projects.env --conditions=react-server src/index.ts",
+    "start": "tsx --conditions=react-server src/index.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
@@ -17,9 +17,11 @@
     "@guardrail/registry": "workspace:*",
     "@guardrail/transport": "workspace:*",
     "drizzle-orm": "^0.44.0",
-    "@guardrail/env": "workspace:*"
+    "@guardrail/env": "workspace:*",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "drizzle-kit": "^0.31.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"

@@ -5,9 +5,5 @@ language js
 
 file($body) where {
   $body <: not contains `import "server-only"`,
-  register_diagnostic(
-    span = $body,
-    message = "Missing `import \"server-only\";`. This module reaches the database, a secret or the bus and must never be bundled for the browser.",
-    severity = "error"
-  )
+  register_diagnostic(span=$body, message="Missing `import \"server-only\";`. This module reaches the database, a secret or the bus and must never be bundled for the browser.", severity="error")
 }

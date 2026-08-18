@@ -1,16 +1,21 @@
 # SOT: infra, docker-compose, nats-server, local-stack
 # Everything the platform needs locally: NATS with JetStream, and Postgres.
+#
+# NATS is started from a configuration file rather than from flags, because the thing it
+# most needs to be told is who is allowed to publish what. `--jetstream` with no accounts
+# meant every process on the machine - and everything else that could reach the port - had
+# unrestricted access to every subject on the bus. See nats/nats.conf and nats/RUNBOOK.md.
 services:
   nats:
     image: nats:2.10-alpine
-    command:
-      - "--jetstream"
-      - "--store_dir=/data"
-      - "--http_port=8222"
+    command: ["-c", "/etc/nats/nats.conf"]
     ports:
-      - "4222:4222"   # client
-      - "8222:8222"   # monitoring: http://localhost:8222/varz
+      # Bound to loopback: nothing outside this machine should be able to open a NATS
+      # connection to a development stack, authenticated or not.
+      - "127.0.0.1:4222:4222"   # client
+      - "127.0.0.1:8222:8222"   # monitoring: http://localhost:8222/varz
     volumes:
+      - ./nats:/etc/nats:ro
       - nats-data:/data
     healthcheck:
       test: ["CMD", "wget", "-q", "-O-", "http://localhost:8222/healthz"]
@@ -25,7 +30,7 @@ services:
       POSTGRES_PASSWORD: guardrail
       POSTGRES_DB: guardrail
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:

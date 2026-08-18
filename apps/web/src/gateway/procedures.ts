@@ -10,11 +10,11 @@
 import "server-only";
 
 import { contractFor } from "@guardrail/contracts";
-import { GatewayError, dispatch } from "@guardrail/guardrail";
-import { ruleFor, type OperationOf, type ResourceKey } from "@guardrail/registry";
+import { dispatch, GatewayError } from "@guardrail/guardrail";
+import { type OperationOf, type ResourceKey, ruleFor } from "@guardrail/registry";
 
 import { gatewayDeps } from "./deps";
-import { TRPCError, publicProcedure } from "./init";
+import { publicProcedure, TRPCError } from "./init";
 
 function toTRPC(error: unknown): never {
   if (error instanceof GatewayError) {
@@ -44,7 +44,10 @@ function build<K extends ResourceKey, O extends OperationOf<K>>(
   return publicProcedure.input(contractFor(resource, operation).input);
 }
 
-export function gatewayQuery<K extends ResourceKey, O extends OperationOf<K>>(resource: K, operation: O) {
+export function gatewayQuery<K extends ResourceKey, O extends OperationOf<K>>(
+  resource: K,
+  operation: O,
+) {
   return build(resource, operation, "query").query(async ({ ctx, input }) => {
     try {
       return await dispatch({ deps: gatewayDeps, ...ctx, resource, operation, input });
@@ -54,7 +57,10 @@ export function gatewayQuery<K extends ResourceKey, O extends OperationOf<K>>(re
   });
 }
 
-export function gatewayMutation<K extends ResourceKey, O extends OperationOf<K>>(resource: K, operation: O) {
+export function gatewayMutation<K extends ResourceKey, O extends OperationOf<K>>(
+  resource: K,
+  operation: O,
+) {
   return build(resource, operation, "mutation").mutation(async ({ ctx, input }) => {
     try {
       return await dispatch({ deps: gatewayDeps, ...ctx, resource, operation, input });

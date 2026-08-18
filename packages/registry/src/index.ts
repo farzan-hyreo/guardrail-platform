@@ -7,5 +7,5 @@
  *        and barrelling it drags that into every client bundle. Import `@guardrail/registry/access`.
  */
 export * from "./define";
-export * from "./registry";
 export * from "./derive";
+export * from "./registry";

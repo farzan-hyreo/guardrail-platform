@@ -8,13 +8,14 @@
  *        and output are inferred rather than asserted at the call site.
  * WHERE  @guardrail/guardrail, apps/web/gateway, services/*
  */
-import type { z } from "zod";
 
 import type { OperationOf, ResourceKey } from "@guardrail/registry";
+import type { z } from "zod";
 
 import { auditContract } from "./resources/audit.contract";
 import { billingContract } from "./resources/billing.contract";
 import { invitationContract, memberContract } from "./resources/identity.contract";
+import { membershipContract, organizationContract } from "./resources/organization.contract";
 import { projectContract } from "./resources/project.contract";
 
 export type Contract = { input: z.ZodType; output: z.ZodType };
@@ -23,6 +24,8 @@ export type Contract = { input: z.ZodType; output: z.ZodType };
 export type ContractMap = { [K in ResourceKey]: { [O in OperationOf<K>]: Contract } };
 
 export const contracts = {
+  organization: organizationContract,
+  membership: membershipContract,
   project: projectContract,
   member: memberContract,
   invitation: invitationContract,

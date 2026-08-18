@@ -1,23 +1,24 @@
 /**
- * SOT: project-list-ui, optimistic-projects, upgrade-prompt-ui
+ * SOT: project-list-ui, optimistic-projects, project-create-form
  * WHAT   Project list with optimistic create.
  * WHY    Both halves of the mirror in one file: <Gate> decides whether the control exists,
- *        and the platform's structured denial fills the upsell if the plan is the blocker.
+ *        and <UpgradePrompt> renders the platform's own denial if the plan is the blocker.
  */
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-
+import type { OutputOf } from "@guardrail/contracts";
 import { Button } from "@guardrail/ui/button";
 import { Card, CardContent } from "@guardrail/ui/card";
-import { Input } from "@guardrail/ui/input";
 import { Gate, useAccess } from "@guardrail/ui/gate";
+import { Input } from "@guardrail/ui/input";
+import { UpgradePrompt } from "@guardrail/ui/upgrade-prompt";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { slugify } from "@/features/projects/rules";
 import { useTRPC } from "@/trpc/react";
 
-type Project = { id: string; name: string; slug: string };
+type Project = OutputOf<"project", "read">["items"][number];
 
 export function ProjectList({ initialItems }: { initialItems: Project[] }) {
   const trpc = useTRPC();
@@ -49,13 +50,7 @@ export function ProjectList({ initialItems }: { initialItems: Project[] }) {
         <Gate
           resource="project"
           operation="create"
-          fallback={
-            access.decision.allowed ? null : (
-              <a className="text-sm underline" href="/billing">
-                {access.decision.upgradeMessage}
-              </a>
-            )
-          }
+          fallback={access.decision.allowed ? null : <UpgradePrompt decision={access.decision} />}
         >
           <div className="flex gap-2">
             <Input

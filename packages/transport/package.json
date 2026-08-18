@@ -11,12 +11,15 @@
   },
   "dependencies": {
     "@guardrail/contracts": "workspace:*",
+    "@guardrail/env": "workspace:*",
     "@guardrail/registry": "workspace:*",
     "@nats-io/jetstream": "^3.0.0",
     "@nats-io/transport-node": "^3.0.0",
-    "@guardrail/env": "workspace:*"
+    "zod": "^4.0.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   }
 }

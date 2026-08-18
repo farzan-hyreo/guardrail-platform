@@ -16,8 +16,17 @@ Covers: server-only (1:10:42), the gap (1:47:10).
 | `apps/web` components | `@guardrail/ui`, registry, trpc client | anything under `@guardrail/*` server packages |
 | `services/<name>` | its own db + schema, guardrail, contracts | another service, `@guardrail/auth` |
 
-The gateway has **no database dependency in its package.json**. That is a stronger
-guarantee than a lint rule: the types do not exist there to be misused.
+`apps/web` **does** depend on `@guardrail/auth` in its package.json, and that package does
+carry a Drizzle client (`authDb`). What actually holds the boundary now is narrower than a
+missing dependency: `authDb` is never exported from any of `@guardrail/auth`'s public
+entries (`.`, `./server`, `./session`, `./schema`, `./client` in its `exports` map). The
+Better Auth instance that wraps it is exported only from `./server`, and by convention -
+named in that file's own `SOT:` header, not enforced by a Biome `noRestrictedImports`
+override - exactly one file in `apps/web` may import it:
+`apps/web/src/app/api/auth/[...all]/route.ts`, the Better Auth catch-all. Every other file
+asks `identify()` off the main entry, which returns a normalised identity and never the
+database client. If you add a second import of `@guardrail/auth/server`, nothing today
+stops it compiling - review it as carefully as a raw `@guardrail/db` import elsewhere.
 
 ## server-only
 

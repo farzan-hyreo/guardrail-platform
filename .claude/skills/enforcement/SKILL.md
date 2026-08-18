@@ -59,6 +59,16 @@ Biome override for a package boundary. Grit plugin for a pattern - keep it narro
 and acts on it. Anything path-relational goes in `guardrail-check.ts` as a function that
 takes `(file, source)` and calls `report()`.
 
+## When an autofix breaks the build
+
+`make fix` runs `pnpm check:fix --unsafe`, and an unsafe autofix occasionally "corrects"
+code toward something a *different* rule then rejects - a strict-mode flag `useLiteralKeys`
+doesn't know about, say. If that happens, the fix is a narrow override scoped to exactly the
+rule and file affected, with the reason written in the override itself. Never turn the rule
+off more broadly, and never weaken it repo-wide to make one file's autofix stop fighting
+another constraint - a scoped, commented exception is how the rest of the repo keeps the
+rule at full strength.
+
 ## Rate limiting
 
 Declared per resource in the registry, applied at the gateway before anything reaches the

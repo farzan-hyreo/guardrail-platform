@@ -1,10 +1,14 @@
 /**
  * SOT: billing-contract, entitlements-wire, checkout-contract
- * WHERE services/billing
+ * WHAT   Input and output schemas for entitlements and checkout.
+ * WHY    Gateway and service parse the same schema, so neither can drift from the other.
+ * HOW    Plans come from PLAN_KEYS, so a plan added to the registry is accepted here
+ *        without anybody editing this file.
+ * WHERE  services/billing
  */
-import { z } from "zod";
 
 import { PLAN_KEYS } from "@guardrail/registry";
+import { z } from "zod";
 
 export const entitlementsDto = z.object({
   plan: z.enum(PLAN_KEYS),
@@ -16,9 +20,7 @@ export const billingContract = {
     input: z.object({}),
     output: z.object({
       entitlements: entitlementsDto,
-      resources: z.array(
-        z.object({ resource: z.string(), label: z.string(), usage: z.string() }),
-      ),
+      resources: z.array(z.object({ resource: z.string(), label: z.string(), usage: z.string() })),
     }),
   },
   manage: {

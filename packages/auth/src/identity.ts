@@ -4,6 +4,10 @@
  * WHY    Normalised identity: `GatewayDeps.identify` is the only signature the block knows.
  *        Moving to Clerk or WorkOS means rewriting this function and nothing else - no
  *        service, no router, no component mentions a provider.
+ * HOW    The cookie names belong to that promise too, so they are re-exported here rather
+ *        than spelled out at the one place that needs them before a session exists. They
+ *        are declared in session-cookie.ts, a leaf with no database import, so the proxy can
+ *        read them without pulling this module's Postgres pool into the edge bundle.
  * WHERE  apps/web/src/gateway/deps.ts
  */
 import "server-only";
@@ -14,6 +18,8 @@ import { normalizeRole } from "@guardrail/registry";
 
 import { auth, authDb } from "./auth";
 import { member } from "./schema";
+
+export { SESSION_COOKIE_NAMES, SESSION_COOKIE_PREFIX } from "./session-cookie";
 
 export async function identify(headers: Headers): Promise<GatewayIdentity | null> {
   const session = await auth.api.getSession({ headers });

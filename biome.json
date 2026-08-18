@@ -1,7 +1,11 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
   "root": true,
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": ["**", "!**/node_modules", "!**/.next", "!**/dist", "!**/.turbo", "!**/drizzle"]
   },
@@ -13,25 +17,50 @@
     "lineEnding": "lf"
   },
   "javascript": {
-    "formatter": { "quoteStyle": "double", "trailingCommas": "all", "semicolons": "always" }
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
   },
   "assist": {
     "enabled": true,
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "plugins": [
-    { "path": "./tools/grit/no-raw-subjects.grit", "includes": ["**/*.ts", "**/*.tsx", "!packages/registry/**", "!packages/transport/**"] },
-    { "path": "./tools/grit/no-process-env.grit", "includes": ["**/*.ts", "!packages/env/**", "!**/drizzle.config.ts"] },
-    { "path": "./tools/grit/require-server-only.grit", "includes": ["**/*.service.ts", "**/*.adapter.ts", "**/*.handlers.ts", "**/src/db.ts"] }
+    {
+      "path": "./tools/grit/no-raw-subjects.grit",
+      "includes": ["**/*.ts", "**/*.tsx", "!**/packages/registry/**", "!**/packages/transport/**"]
+    },
+    {
+      "path": "./tools/grit/no-process-env.grit",
+      "includes": ["**/*.ts", "!**/packages/env/**", "!**/drizzle.config.ts"]
+    },
+    {
+      "path": "./tools/grit/require-server-only.grit",
+      "includes": ["**/*.service.ts", "**/*.adapter.ts", "**/*.handlers.ts", "**/src/db.ts"]
+    }
   ],
   "linter": {
     "enabled": true,
-    "domains": { "next": "recommended", "react": "recommended" },
+    "domains": {
+      "next": "recommended",
+      "react": "recommended"
+    },
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsole": { "level": "warn", "options": { "allow": ["error", "warn", "info"] } },
+        "noConsole": {
+          "level": "warn",
+          "options": {
+            "allow": ["error", "warn", "info"]
+          }
+        },
         "useAwait": "error"
       },
       "style": {
@@ -41,12 +70,34 @@
         "noNonNullAssertion": "error",
         "useNamingConvention": {
           "level": "error",
-          "options": { "strictCase": false, "conventions": [{ "selector": { "kind": "typeLike" }, "formats": ["PascalCase"] }] }
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              {
+                "selector": {
+                  "kind": "typeLike"
+                },
+                "formats": ["PascalCase"]
+              }
+            ]
+          }
         }
       },
-      "complexity": { "noExcessiveCognitiveComplexity": { "level": "warn", "options": { "maxAllowedComplexity": 20 } } },
-      "correctness": { "noUnusedImports": "error", "noUnusedVariables": "error" },
-      "nursery": { "noFloatingPromises": "error" }
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 20
+          }
+        }
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
+      "nursery": {
+        "noFloatingPromises": "error"
+      }
     }
   },
   "overrides": [
@@ -81,7 +132,8 @@
                 "paths": {
                   "@guardrail/db": "The gateway does not talk to a database. Ask the owning service over the bus.",
                   "drizzle-orm": "The gateway does not talk to a database. Ask the owning service over the bus.",
-                  "pg": "The gateway does not talk to a database. Ask the owning service over the bus."
+                  "pg": "The gateway does not talk to a database. Ask the owning service over the bus.",
+                  "@guardrail/auth/server": "Only apps/web/src/app/api/auth/[...all]/route.ts may import this. The Better Auth instance carries a database client, and the gateway is not allowed one. Everywhere else asks identify() for a normalised identity."
                 }
               }
             }
@@ -90,7 +142,11 @@
       }
     },
     {
-      "includes": ["apps/web/src/components/**", "apps/web/src/features/**/*.tsx", "packages/ui/**"],
+      "includes": [
+        "apps/web/src/components/**",
+        "apps/web/src/features/**/*.tsx",
+        "packages/ui/**"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -109,16 +165,134 @@
       }
     },
     {
+      "includes": ["services/audit/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/service-billing": "Service 'audit' may not import service 'billing'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-identity": "Service 'audit' may not import service 'identity'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-projects": "Service 'audit' may not import service 'projects'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["services/billing/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/service-audit": "Service 'billing' may not import service 'audit'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-identity": "Service 'billing' may not import service 'identity'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-projects": "Service 'billing' may not import service 'projects'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["services/identity/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/service-audit": "Service 'identity' may not import service 'audit'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-billing": "Service 'identity' may not import service 'billing'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-projects": "Service 'identity' may not import service 'projects'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["services/projects/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/service-audit": "Service 'projects' may not import service 'audit'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-billing": "Service 'projects' may not import service 'billing'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts.",
+                  "@guardrail/service-identity": "Service 'projects' may not import service 'identity'. Ask over a subject with request()/publish(), or share the type through @guardrail/contracts."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/web/src/gateway/routers/**"],
       "linter": {
         "rules": {
-          "complexity": { "noExcessiveCognitiveComplexity": { "level": "error", "options": { "maxAllowedComplexity": 1 } } }
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": {
+                "maxAllowedComplexity": 1
+              }
+            }
+          }
         }
       }
     },
     {
       "includes": ["**/*.config.ts", "scripts/**", "tools/**"],
-      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/app/api/auth/\\[...all\\]/route.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/db": "The gateway does not talk to a database. Ask the owning service over the bus.",
+                  "drizzle-orm": "The gateway does not talk to a database. Ask the owning service over the bus.",
+                  "pg": "The gateway does not talk to a database. Ask the owning service over the bus."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/env/src/index.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "useLiteralKeys": "off"
+          }
+        }
+      }
     }
   ]
 }

@@ -11,8 +11,13 @@
 import "server-only";
 
 import { env } from "@guardrail/env";
-import { jetstream, jetstreamManager, type JetStreamClient, type JetStreamManager } from "@nats-io/jetstream";
-import { connect, type NatsConnection } from "@nats-io/transport-node";
+import {
+  type JetStreamClient,
+  type JetStreamManager,
+  jetstream,
+  jetstreamManager,
+} from "@nats-io/jetstream";
+import { connect, type NatsConnection, nkeyAuthenticator } from "@nats-io/transport-node";
 
 /**
  * Declared rather than asserted. Next.js re-evaluates modules on every hot reload, so
@@ -24,12 +29,23 @@ declare global {
 
 export const natsUrl = env.natsUrl;
 
-export async function connection(): Promise<NatsConnection> {
+/**
+ * Not `async`: it hands back the one shared promise rather than awaiting and re-wrapping it.
+ * The seed is this process's identity on the bus; infra/nats/auth.conf says which subjects
+ * that identity may use. `inboxPrefix` scopes replies to this process, so a compromised
+ * service cannot subscribe to the gateway's inbox and read every answer crossing the bus.
+ */
+export function connection(): Promise<NatsConnection> {
+  const user = env.natsUser();
+  const seed = env.natsNkeySeed();
   globalThis.__guardrailNats ??= connect({
     servers: natsUrl(),
-    name: env.serviceName(),
+    name: user,
+    inboxPrefix: `_INBOX.${user}`,
     maxReconnectAttempts: -1,
     reconnectTimeWait: 500,
+    // exactOptionalPropertyTypes: an absent seed is an absent key, never `undefined`.
+    ...(seed === null ? {} : { authenticator: nkeyAuthenticator(new TextEncoder().encode(seed)) }),
   });
   return globalThis.__guardrailNats;
 }
@@ -52,5 +68,4 @@ export async function closeConnection(): Promise<void> {
 export const encode = (value: unknown): Uint8Array =>
   new TextEncoder().encode(JSON.stringify(value));
 
-export const decode = <T>(data: Uint8Array): T =>
-  JSON.parse(new TextDecoder().decode(data)) as T;
+export const decode = <T>(data: Uint8Array): T => JSON.parse(new TextDecoder().decode(data)) as T;

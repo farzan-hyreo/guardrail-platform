@@ -57,6 +57,8 @@ browser → gateway (authorise, sign) → NATS → service (verify, execute) →
 ## Before handing anything back
 
 - `pnpm verify` - typecheck, Biome, and the architecture check. `make fix` repairs most
-  of it automatically. Fix everything that remains.
+  of it automatically. Fix everything that remains. If an autofix ever breaks the build,
+  the fix is a narrow, commented override scoped to that rule and file - never weakening
+  the rule itself. See `enforcement`.
 - Finish the feature end to end. Do not leave a stub and ask for next steps.
 - Do not run git commands. No commits, branches, resets, or reading history.

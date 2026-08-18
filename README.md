@@ -27,23 +27,37 @@ Next.js gateway ── authorises, signs an envelope ──┐
                                             └──▶ audit consumer   billing meter consumer
 ```
 
-- The **gateway** decides who may do what, and has no database dependency in its
-  `package.json`. It cannot query anything even by mistake.
+- The **gateway** decides who may do what. `apps/web` depends on `@guardrail/auth`, which
+  does carry a database client, but that client (`authDb`) is never exported from any
+  importable entry point - only the Better Auth instance is, behind a `./server` subpath
+  that exactly one file, the Better Auth catch-all route, is allowed to import. No page or
+  router can reach it.
 - **Services** execute. Each owns its schema and migrations. They never import each other.
 - **Audit and metering are consumers**, not code in the request path. A service cannot
   forget to audit, because it never audits - it succeeds and the event does the rest.
 
 ## Quick start
 
+NATS authenticates every connection - there is no anonymous fallback. Development keys are
+already checked in under `infra/nats/creds/`, but two of the commands below need one loaded
+into the shell first, and the gateway needs a one-time file copy:
+
 ```bash
 pnpm install
-cp .env.example .env          # BETTER_AUTH_SECRET and ENVELOPE_SECRET are required
-make up                       # NATS + Postgres, then create the streams
-make migrate                  # each service migrates its own tables
-make dev                      # gateway + four services
-make verify                   # typecheck + Biome + architecture check
-make fix                      # format, autofix, repair
+cp .env.example .env                            # BETTER_AUTH_SECRET and ENVELOPE_SECRET are required
+cp infra/nats/creds/gateway.env apps/web/.env.local   # one-time - Next.js has no --env-file flag
+set -a; . infra/nats/creds/bootstrap.env; set +a
+make up                                         # NATS + Postgres, then create the streams
+make migrate                                    # each service migrates its own tables
+make dev                                        # gateway + four services
+make verify                                     # typecheck + Biome + architecture check
+make fix                                        # format, autofix, repair
 ```
+
+Only the gateway needed that manual copy: the four services already carry their own
+`--env-file=infra/nats/creds/<service>.env` in each `package.json`'s `dev` script, so
+`make dev` picks their credentials up with no extra step. Full detail, every command, and
+what each error in the NATS log means: **`infra/nats/RUNBOOK.md`**.
 
 `make help` lists everything. Autumn and Upstash keys are optional - without them everyone
 is on the free plan with an in-process limiter, so a fresh clone runs.
@@ -98,17 +112,22 @@ The single-process version had one middleware. Distributed, it has two halves th
 trust each other:
 
 **Gateway** (`packages/guardrail/src/gateway.ts`) — identity → org scoping → role →
-permission → rate limit → entitlements → plan gate → **sign the envelope** → dispatch →
-validate the reply.
+permission → rate limit → entitlements → plan gate → **sign the envelope** (meta + payload)
+→ dispatch → verify the reply's signature → validate its shape against the contract.
 
-**Service** (`packages/guardrail/src/service.ts`) — verify signature → check deadline →
-find handler → re-assert permission → parse input → run handler → validate output → emit
-event → map errors.
+**Service** (`packages/guardrail/src/service.ts`) — verify signature → find handler →
+confirm subject → check deadline (`rpc` only) → re-assert permission → parse input → run
+handler → validate output, sign reply → emit event → map errors.
 
 The envelope is the reason this works. `ctx` used to be trustworthy because only our code
 could build it; on a bus, anything with credentials can publish. So the gateway's decision
-travels HMAC-signed, and a service that skips verification cannot be written — `defineService`
-does it before your handler runs.
+travels HMAC-signed — over the payload as well as the meta, so a captured envelope cannot
+have its body swapped in flight — and replies are signed back the same way. A service that
+skips verification on the `rpc`/`command` path cannot be written: `defineService` does it
+before your handler runs. An `evt.*` consumer is a separate code path with no handler
+registration to hook into, so it must be built with `defineConsumer` explicitly, which
+verifies the same signature before your callback runs. `services/audit` and
+`services/billing` both use it.
 
 ### 4. A gateway route is one line
 
@@ -160,13 +179,15 @@ encodes.
 ## Layout
 
 ```
-apps/web/                     gateway + UI. No database dependency.
+apps/web/                     gateway + UI. `authDb` reachable from exactly one route.
   src/gateway/                init, deps, procedures, one-line routers
   src/features/               UI per feature
   src/app/(dashboard)/        route guard for pages the gateway never sees
-tools/
+tools/                        workspace package (pnpm-workspace.yaml) - typechecked by
+                               `pnpm verify` like any other package, not just run with tsx
   grit/                       GritQL lint plugins
   guardrail-check.ts          the relational architecture rules
+scripts/                      workspace package too, same typecheck coverage
 packages/
   registry/                   registry.ts (edit) + derive.ts (computed) + access.ts
   contracts/                  envelope, signing, wire errors, contract map
@@ -179,6 +200,9 @@ packages/
   env/                        every environment variable, read once
 services/
   projects/  identity/  billing/  audit/
+infra/
+  nats/                        NATS auth: keys, generated permissions, RUNBOOK.md - read
+                               that file before touching anything under here
 ```
 
 ## Adding a feature
@@ -196,7 +220,10 @@ intact at the cost of two packages knowing those tables. If you outgrow it, move
 writes fully into the identity service and have the gateway publish a command.
 
 **Entitlements are cached for 30s at the gateway.** Otherwise every read in the product
-carries an extra network hop. Invalidate on `evt.billing.manage` if you need it tighter.
+carries an extra network hop. `apps/web/src/gateway/deps.ts` exports
+`invalidateEntitlements(orgId)` for the tighter case, but nothing calls it yet — no
+`evt.billing.manage` consumer is wired to it. Until one is, a plan change is visible to a
+given org after at most 30s, not immediately.
 
 **Both halves check permissions.** Deliberately redundant: a gateway bug should be a bug,
 not a data breach.

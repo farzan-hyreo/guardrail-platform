@@ -22,12 +22,14 @@
     "@trpc/server": "^11.0.0",
     "@trpc/tanstack-react-query": "^11.0.0",
     "autumn-js": "^0.1.30",
+    "better-auth": "^1.3.0",
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "superjson": "^2.2.2",
     "zod": "^4.0.0",
-    "@guardrail/env": "workspace:*"
+    "@guardrail/env": "workspace:*",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",

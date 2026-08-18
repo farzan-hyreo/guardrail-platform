@@ -1,14 +1,23 @@
 // SOT: no-raw-subjects, grit-plugin, subject-lint
 // A subject typed by hand is a subject that will eventually be typo'd, and a typo'd
 // subject is a request that hangs until it times out with no compiler to catch it.
+// Interpolating the halves - `rpc.${resource}.${operation}` - is still typing it by hand.
+//
+// Three things about Biome 2.5's GritQL engine, all verified against the installed CLI
+// rather than assumed, because the previous version of this rule matched nothing at all:
+//   1. a regex is matched against the WHOLE text of a node, delimiters included, so the
+//      opening quote or backtick has to be part of the pattern;
+//   2. a capture group must be bound to a variable or the plugin errors out silently
+//      ("regex pattern matched 1 variables, but expected 0") - hence (?:...) throughout;
+//   3. `string()` matches string literals only, never a template literal. Matching any
+//      node and letting the anchored regex do the narrowing catches both, and because the
+//      match must start and end on a delimiter, only the literal itself is reported.
+// `cmd.>` and `evt.>` are stream wildcards, not subjects: `>` is outside the segment
+// class, so a filterSubject is never flagged. tools/guardrail-check.ts carries the same
+// pattern as a backstop for when the plugin engine is not running.
 language js
 
 `$subject` where {
-  $subject <: string(),
-  $subject <: r"(rpc|cmd|evt)\.[a-zA-Z]+\.[a-zA-Z]+",
-  register_diagnostic(
-    span = $subject,
-    message = "Build subjects with rpcSubject/commandSubject/eventSubject from @guardrail/registry. A literal cannot be checked by the compiler.",
-    severity = "error"
-  )
+  $subject <: r"[\"'`](?:rpc|cmd|evt)\.(?:[A-Za-z0-9_$]+|\$\{[^}]*\})+\.(?:[A-Za-z0-9_$]+|\$\{[^}]*\})+[^\"'`]*[\"'`]",
+  register_diagnostic(span=$subject, message="Build subjects with rpcSubject/commandSubject/eventSubject from @guardrail/registry. A literal cannot be checked by the compiler, and interpolating the resource and operation into one is still a literal.", severity="error")
 }

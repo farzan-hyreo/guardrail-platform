@@ -6,6 +6,7 @@
  *        by "create a project", which is the only part worth thinking about.
  * HOW    `handlerFor` infers input and output from the contract - never annotate them.
  *        ctx.orgId comes from the signed envelope; never scope a query to anything else.
+ * WHERE  packages/guardrail/src/service.ts, services/projects/src/project.service.ts
  */
 import "server-only";
 
@@ -35,14 +36,22 @@ export const projectHandlers = [
       createdById: ctx.userId,
       name: input.name,
       slug: input.slug,
-      description: input.description,
+      // exactOptionalPropertyTypes: "absent" and "present but undefined" are different
+      // states, so the key is built conditionally rather than passed as undefined.
+      ...(input.description === undefined ? {} : { description: input.description }),
     });
     if (created === undefined) throw new ServiceError("INTERNAL", "The project was not created.");
     return created;
   }),
 
   handlerFor("project", "update", async ({ ctx, input }) => {
-    const updated = await projectService.update({ organizationId: ctx.orgId, ...input });
+    const updated = await projectService.update({
+      organizationId: ctx.orgId,
+      id: input.id,
+      ...(input.name === undefined ? {} : { name: input.name }),
+      ...(input.description === undefined ? {} : { description: input.description }),
+      ...(input.archived === undefined ? {} : { archived: input.archived }),
+    });
     if (updated === null) throw new ServiceError("NOT_FOUND", "Project not found.");
     return updated;
   }),

@@ -7,6 +7,11 @@
     "./*": "./src/components/ui/*.tsx",
     "./lib/utils": "./src/lib/utils.ts",
     "./gate": "./src/components/gate.tsx",
+    "./access-gate": "./src/components/access-gate.tsx",
+    "./auth-gate": "./src/components/auth-gate.tsx",
+    "./feature-gate": "./src/components/feature-gate.tsx",
+    "./price-gate": "./src/components/price-gate.tsx",
+    "./upgrade-prompt": "./src/components/upgrade-prompt.tsx",
     "./viewer": "./src/components/viewer.tsx"
   },
   "scripts": {

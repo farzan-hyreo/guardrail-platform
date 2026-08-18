@@ -12,9 +12,11 @@
   "dependencies": {
     "@guardrail/registry": "workspace:*",
     "autumn-js": "^0.1.30",
-    "@guardrail/env": "workspace:*"
+    "@guardrail/env": "workspace:*",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   }
 }

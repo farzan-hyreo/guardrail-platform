@@ -4,9 +4,5 @@
 language js
 
 `process.env` where {
-  register_diagnostic(
-    span = $match,
-    message = "Read environment variables through @guardrail/env. Add the variable there and to .env.example.",
-    severity = "error"
-  )
+  register_diagnostic(span=$match, message="Read environment variables through @guardrail/env. Add the variable there and to .env.example.", severity="error")
 }

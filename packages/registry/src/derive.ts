@@ -1,6 +1,7 @@
 /**
  * SOT: derive, derived-registry, permissions, entitlements, subjects, nav, streams,
- *      plan-limits, feature-gate, client-mirror, role-rank, queue-groups
+ *      plan-limits, feature-gate, client-mirror, role-rank, queue-groups,
+ *      assignable-roles, role-normalisation
  * WHAT   Every view of the registry, computed from registry.ts by one pipeline.
  * WHY    Six things need the same facts - gateway, service, bus, browser, nav and billing.
  *        Computed here, they cannot disagree, and there is no parallel list to maintain.
@@ -10,19 +11,19 @@
  * EDIT   Do not add data here. Data goes in registry.ts.
  */
 import {
-  OPERATIONS,
-  ORG_ROLES,
-  SERVICES,
   fromKeys,
   keysOf,
   type Limit,
   type NavEntry,
+  OPERATIONS,
   type Operation,
   type OperationRule,
+  ORG_ROLES,
   type OrgRole,
+  SERVICES,
   type ServiceName,
 } from "./define";
-import { DEFAULT_PLAN, PLANS, RESOURCES, type PlanKey, type ResourceKey } from "./registry";
+import { DEFAULT_PLAN, PLANS, type PlanKey, RESOURCES, type ResourceKey } from "./registry";
 
 /* ── Keys and guards ─────────────────────────────────────────────────────── */
 
@@ -66,8 +67,18 @@ export function operationsOf<K extends ResourceKey>(resource: K): readonly Opera
   );
 }
 
-export function ruleFor<K extends ResourceKey>(resource: K, operation: OperationOf<K>): OperationRule {
-  const rule = RESOURCES[resource].operations[operation as Operation];
+export function ruleFor<K extends ResourceKey>(
+  resource: K,
+  operation: OperationOf<K>,
+): OperationRule {
+  /**
+   * Widened to the declared shape before indexing. Each resource literal only carries the
+   * operations it declared, so indexing the union directly is an implicit `any`; naming the
+   * supertype the registry already satisfies keeps the lookup honest without an assertion.
+   */
+  const declared: Readonly<Partial<Record<Operation, OperationRule>>> =
+    RESOURCES[resource].operations;
+  const rule = declared[operation];
   if (rule === undefined) {
     throw new Error(`Undeclared operation ${String(operation)} on resource ${resource}.`);
   }
@@ -128,8 +139,36 @@ export const ROLES_ASCENDING: readonly OrgRole[] = [...ORG_ROLES].sort(
   (a, b) => ROLE_RANK[a] - ROLE_RANK[b],
 );
 
+/**
+ * The two ends of ROLE_RANK, reduced rather than indexed so `noUncheckedIndexedAccess` has
+ * nothing to complain about and neither end is a role name typed by hand. LOWEST_ROLE is
+ * what an unrecognised role degrades to; HIGHEST_ROLE is what the creator of an
+ * organisation is given.
+ */
+export const LOWEST_ROLE: OrgRole = ROLES_ASCENDING.reduce(
+  (lowest, role) => (ROLE_RANK[role] < ROLE_RANK[lowest] ? role : lowest),
+  ORG_ROLES[0],
+);
+
+export const HIGHEST_ROLE: OrgRole = ROLES_ASCENDING.reduce(
+  (highest, role) => (ROLE_RANK[role] > ROLE_RANK[highest] ? role : highest),
+  ORG_ROLES[0],
+);
+
 export function roleAtLeast(actual: OrgRole, required: OrgRole): boolean {
   return ROLE_RANK[actual] >= ROLE_RANK[required];
+}
+
+/**
+ * Every role an actor is allowed to hand out. Nobody may grant a role above their own, so
+ * an admin cannot mint an owner and a role change is not a privilege escalation. Derived
+ * from ROLE_RANK, so a role added to ORG_ROLES is covered the moment it is declared.
+ *
+ * The gate that consumes this belongs in the gateway block with the other checks, never in
+ * a handler - see the `the-block` skill.
+ */
+export function assignableRoles(actor: OrgRole): readonly OrgRole[] {
+  return ROLES_ASCENDING.filter((role) => roleAtLeast(actor, role));
 }
 
 /** Every permission a role holds, from each operation's declared minRole. */
@@ -156,12 +195,31 @@ export function can<K extends ResourceKey, O extends OperationOf<K>>(
   resource: K,
   operation: O,
 ): boolean {
-  return held.includes(toPermission(resource, operation));
+  /**
+   * Compared as a string rather than passed to `includes`. With K and O still generic the
+   * compiler expands `${K}:${O}` to the full cross product, which contains pairs no resource
+   * declared; the comparison asks the same question without asserting that it does not.
+   */
+  const permission: string = toPermission(resource, operation);
+  return held.some((candidate) => candidate === permission);
 }
 
-/** An unrecognised role from an identity provider degrades down, never up. */
+/**
+ * An unrecognised role from an identity provider degrades down, never up.
+ *
+ * `member.role` is an unconstrained `text` column and Better Auth writes multiple roles
+ * into it comma-separated ("owner,admin"). Matching the whole column missed that and
+ * dropped such a person to the lowest role on their next request, quietly taking billing,
+ * audit and team management away from an owner. Every claimed role is read and the highest
+ * recognised one wins; unknown names contribute nothing, so this can only ever degrade.
+ */
 export function normalizeRole(value: unknown): OrgRole {
-  return ORG_ROLES.find((role): boolean => role === value) ?? "member";
+  if (typeof value !== "string") return LOWEST_ROLE;
+  return value.split(",").reduce<OrgRole>((best, claimed) => {
+    const trimmed = claimed.trim();
+    const known = ORG_ROLES.find((role): boolean => role === trimmed);
+    return known !== undefined && ROLE_RANK[known] > ROLE_RANK[best] ? known : best;
+  }, LOWEST_ROLE);
 }
 
 /* ── Entitlements: the client mirror ─────────────────────────────────────── */
@@ -208,7 +266,9 @@ export function checkResourceAccess(args: {
   const limit = limitFor(resource, entitlements.plan);
   const used = entitlements.usage[resource] ?? 0;
   const nextPlan = nextPlanAfter(entitlements.plan);
-  const upgradeMessage = RESOURCES[resource].upgrade(nextPlan === null ? null : PLANS[nextPlan].label);
+  const upgradeMessage = RESOURCES[resource].upgrade(
+    nextPlan === null ? null : PLANS[nextPlan].label,
+  );
 
   if (limit === false) {
     return { allowed: false, reason: "not_in_plan", limit, used, nextPlan, upgradeMessage };
@@ -287,6 +347,12 @@ export type SubjectRoute = {
   readonly transport: OperationRule["transport"];
   readonly owner: ServiceName;
   readonly audit: boolean;
+  /**
+   * The evt subject this operation emits on, or null when it is not audited. Computed here,
+   * where the resource and operation are still narrowed to the pair that declared them, so
+   * no consumer has to re-prove that relationship before it can name the subject.
+   */
+  readonly event: string | null;
 };
 
 /** Every subject the platform may legally use. Printed by `pnpm subjects`. */
@@ -299,6 +365,7 @@ export const ROUTES: readonly SubjectRoute[] = RESOURCE_KEYS.flatMap((resource) 
       transport: rule.transport,
       owner: RESOURCES[resource].owner,
       audit: rule.audit,
+      event: rule.audit ? eventSubject(resource, operation) : null,
       subject:
         rule.transport === "rpc"
           ? rpcSubject(resource, operation)
@@ -307,9 +374,18 @@ export const ROUTES: readonly SubjectRoute[] = RESOURCE_KEYS.flatMap((resource) 
   }),
 );
 
+/**
+ * The longest budget any declared operation asks for. A verifier uses it to refuse an
+ * envelope whose deadline is wider than anything the registry could have issued, which is
+ * what stops a captured envelope being replayed with a hand-written century-long deadline.
+ */
+export const MAX_TIMEOUT_MS: number = RESOURCE_KEYS.flatMap((resource) =>
+  operationsOf(resource).map((operation) => ruleFor(resource, operation).timeoutMs),
+).reduce((longest, timeoutMs) => Math.max(longest, timeoutMs), 0);
+
 export function allSubjects(): readonly string[] {
   return ROUTES.flatMap((route) =>
-    route.audit ? [route.subject, `evt.${route.resource}.${route.operation}`] : [route.subject],
+    route.event === null ? [route.subject] : [route.subject, route.event],
   );
 }
 

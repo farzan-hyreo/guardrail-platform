@@ -15,7 +15,7 @@
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f nats",
-    "nats:bootstrap": "tsx scripts/bootstrap-streams.ts",
+    "nats:bootstrap": "tsx --conditions=react-server scripts/bootstrap-streams.ts",
     "nats:watch": "nats sub 'evt.>' --server localhost:4222",
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",

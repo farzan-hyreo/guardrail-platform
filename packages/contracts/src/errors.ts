@@ -3,6 +3,9 @@
  * WHAT   The error vocabulary that survives a network hop.
  * WHY    A thrown Error does not cross a bus. Services return a coded reply; the gateway
  *        turns it back into a tRPC error with the structured data the UI needs.
+ * HOW    Add a code to ERROR_CODES and the compiler demands a row in ERROR_HTTP_MAP.
+ *        `ServiceError` carries the code across the handler boundary; the service half of
+ *        the block turns it into a signed reject and the gateway maps it back.
  * WHERE  @guardrail/guardrail, apps/web components
  */
 export const ERROR_CODES = [
@@ -22,14 +25,20 @@ export const ERROR_CODES = [
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/**
+ * Fields are declared and assigned rather than written as constructor parameter properties:
+ * `erasableSyntaxOnly` is on, and a parameter property is TypeScript that has to be emitted
+ * rather than erased.
+ */
 export class ServiceError extends Error {
-  constructor(
-    readonly code: ErrorCode,
-    message: string,
-    readonly data?: unknown,
-  ) {
+  readonly code: ErrorCode;
+  readonly data: unknown;
+
+  constructor(code: ErrorCode, message: string, data?: unknown) {
     super(message);
     this.name = "ServiceError";
+    this.code = code;
+    this.data = data;
   }
 }
 

@@ -25,8 +25,16 @@ in a subject is a request that hangs until it times out, with no compiler to cat
 | Delivery | at most once | at least once, durable |
 | Use for | reads, quick writes | email, PDF, third-party APIs, anything slow or flaky |
 | Handler must be | correct | **idempotent** |
+| Deadline | enforced (`timeoutMs`, via `checkFreshness`) | not enforced |
 
 Declared in the registry per operation, not decided at the call site.
+
+A command's `timeoutMs` still exists - it sizes the gateway's request budget for the
+`{accepted: true}` acknowledgement - but `checkFreshness` never applies `deadlineAt` to a
+command's execution. A command is durable on purpose, and JetStream keeps redelivering it
+for as long as the stream holds the message, which can outlast any `timeoutMs` you'd write.
+What eventually expires an unprocessed command is the stream's max age
+(`packages/transport/src/streams.ts`), not the envelope's `deadlineAt`.
 
 ## Adding a service
 
@@ -38,6 +46,25 @@ Declared in the registry per operation, not decided at the call site.
    `handlerFor(resource, operation, fn)`, and asserts at boot that you only handle
    resources the registry says you own.
 5. The subject list in `index.ts` comes from `runtime.routes` - derived, never listed.
+
+## Consumers must verify, too
+
+`defineService` verifies the envelope before an `rpc`/`command` handler runs, but an
+`evt.*` consumer never goes through it - `consume()` in `packages/transport` hands your
+callback the raw bytes straight off the subscription. Build every `evt.*` consumer with
+`defineConsumer({ secret }, handler)` from `@guardrail/guardrail`, not a bare callback
+passed to `consume()`. It parses the envelope, verifies the signature over meta *and*
+payload, and confirms the subject the message arrived on matches what the registry says
+that operation emits, before your handler sees anything. Skip it and `meta.orgId` is a
+claim from whoever published to that subject. NATS itself authenticates now (see
+`infra/nats/RUNBOOK.md`) - a stranger off the host cannot publish at all - but that answers
+"which of our processes is this", not "did the gateway authorise this org id". A service
+that gets compromised still holds a legitimate key, so it can still publish a well-formed,
+unsigned `evt.*` message and forge an event on a victim org, or (since
+`audit_log.requestId` is unique with `onConflictDoNothing`) silently suppress a genuine
+audit row by racing it with a forged one carrying the same id. `defineConsumer` is what
+still catches that. `services/audit` and `services/billing` both build their `evt.>`
+consumer this way - copy one, don't write a `consume()` callback from scratch.
 
 ## Consumers must be idempotent
 

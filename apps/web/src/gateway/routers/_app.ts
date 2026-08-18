@@ -6,10 +6,11 @@
  */
 import { createCallerFactory, createTRPCRouter } from "../init";
 import { auditRouter, billingRouter } from "./billing.router";
-import { invitationRouter, memberRouter } from "./identity.router";
+import { invitationRouter, memberRouter, organizationRouter } from "./identity.router";
 import { projectRouter } from "./project.router";
 
 export const appRouter = createTRPCRouter({
+  organization: organizationRouter,
   project: projectRouter,
   member: memberRouter,
   invitation: invitationRouter,

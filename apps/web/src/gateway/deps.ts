@@ -11,14 +11,13 @@
 import "server-only";
 
 import { identify } from "@guardrail/auth";
+import type { ReplyEnvelope } from "@guardrail/contracts";
 import { env } from "@guardrail/env";
 import type { GatewayDeps } from "@guardrail/guardrail";
-import { DEFAULT_PLAN, type Entitlements } from "@guardrail/registry";
-import { rpcSubject, type ReplyEnvelope } from "@guardrail/contracts";
+import { EMPTY_ENTITLEMENTS, type Entitlements, rpcSubject } from "@guardrail/registry";
 import { rpcRequest } from "@guardrail/transport";
-
-import { rateLimit } from "./ratelimit";
 import { signedEnvelopeFor } from "./internal-envelope";
+import { rateLimit } from "./ratelimit";
 
 const TTL_MS = 30_000;
 const cache = new Map<string, { value: Entitlements; expiresAt: number }>();
@@ -37,15 +36,28 @@ async function entitlements(orgId: string): Promise<Entitlements> {
       envelope: signedEnvelopeFor({ orgId, resource: "billing", operation: "read" }),
       timeoutMs: 4000,
     });
-    const value =
-      reply.ok && reply.data?.entitlements
-        ? reply.data.entitlements
-        : { plan: DEFAULT_PLAN, usage: {} };
-    cache.set(orgId, { value, expiresAt: Date.now() + TTL_MS });
-    return value;
-  } catch {
-    // Billing being down must not lock paying customers out. Degrade, do not deny.
-    return { plan: DEFAULT_PLAN, usage: {} };
+
+    if (reply.ok && reply.data?.entitlements) {
+      const value = reply.data.entitlements;
+      cache.set(orgId, { value, expiresAt: Date.now() + TTL_MS });
+      return value;
+    }
+
+    // Billing answered but refused or returned nothing usable. Log the reason so this
+    // is visible, but do not cache the degradation - a transient failure must last one
+    // request, not thirty seconds, or a paying org gets refused at the plan gate while
+    // billing is perfectly healthy.
+    console.error(
+      `[entitlements] billing did not return usable data for org ${orgId}: ${
+        reply.ok ? "empty response" : reply.error.code
+      }`,
+    );
+    return EMPTY_ENTITLEMENTS;
+  } catch (error) {
+    // Billing being unreachable must not lock paying customers out either. Degrade, do
+    // not deny - and do not cache, for the same reason as above.
+    console.error(`[entitlements] billing unreachable for org ${orgId}`, error);
+    return EMPTY_ENTITLEMENTS;
   }
 }
 

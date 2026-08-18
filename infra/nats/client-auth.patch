@@ -1,0 +1,62 @@
+# SOT: nats-client-auth-patch
+#
+# The client half of the bus authentication, for whoever owns packages/env and
+# packages/transport. Written as a patch rather than applied because those files were held
+# by another agent while infra/ was being built.
+#
+#   git apply -3 infra/nats/client-auth.patch
+#
+# If the context has drifted, apply it by hand: the same two changes are written out in
+# full in infra/nats/RUNBOOK.md under "Applying the client change". Nothing else is needed -
+# nkeyAuthenticator is re-exported by @nats-io/transport-node, already a dependency.
+
+--- a/packages/env/src/index.ts
++++ b/packages/env/src/index.ts
+@@
+   natsUrl: (): string => optional("NATS_URL") ?? "nats://localhost:4222",
++  /** Names the NATS credential this process holds. See infra/nats/auth.conf. */
++  natsUser: (): string => optional("NATS_USER") ?? optional("SERVICE_NAME") ?? "gateway",
++  /**
++   * The private half of that credential. The bus refuses an unauthenticated connection, so
++   * a deployment without one fails at boot rather than on a customer's request.
++   */
++  natsNkeySeed: (): string | null => {
++    const seed = optional("NATS_NKEY_SEED");
++    if (seed === null && process.env["NODE_ENV"] === "production") {
++      throw new Error(
++        "Missing NATS_NKEY_SEED. The bus authenticates; see infra/nats/RUNBOOK.md.",
++      );
++    }
++    return seed;
++  },
+
+--- a/packages/transport/src/connection.ts
++++ b/packages/transport/src/connection.ts
+@@
+-import { connect, type NatsConnection } from "@nats-io/transport-node";
++import { connect, type NatsConnection, nkeyAuthenticator } from "@nats-io/transport-node";
+@@
+-/** Not `async`: it hands back the one shared promise rather than awaiting and re-wrapping it. */
++/**
++ * Not `async`: it hands back the one shared promise rather than awaiting and re-wrapping it.
++ * The seed is this process's identity on the bus; infra/nats/auth.conf says which subjects
++ * that identity may use. `inboxPrefix` scopes replies to this process, so a compromised
++ * service cannot subscribe to the gateway's inbox and read every answer crossing the bus.
++ */
+ export function connection(): Promise<NatsConnection> {
++  const user = env.natsUser();
++  const seed = env.natsNkeySeed();
+   globalThis.__guardrailNats ??= connect({
+     servers: natsUrl(),
+-    name: env.serviceName(),
++    name: user,
++    inboxPrefix: `_INBOX.${user}`,
+     maxReconnectAttempts: -1,
+     reconnectTimeWait: 500,
++    // exactOptionalPropertyTypes: an absent seed is an absent key, never `undefined`.
++    ...(seed === null
++      ? {}
++      : { authenticator: nkeyAuthenticator(new TextEncoder().encode(seed)) }),
+   });
+   return globalThis.__guardrailNats;
+ }

@@ -11,22 +11,19 @@
  */
 import "server-only";
 
-import { Autumn } from "autumn-js";
-
 import { env } from "@guardrail/env";
-
-
 import {
   DEFAULT_PLAN,
-  PLANS,
-  RESOURCES,
-  RESOURCE_KEYS,
-  planFromAutumnProductId,
   type Entitlements,
+  PLANS,
   type PlanKey,
+  planFromAutumnProductId,
+  RESOURCE_KEYS,
+  RESOURCES,
   type ResourceKey,
   type UsageSnapshot,
 } from "@guardrail/registry";
+import { Autumn } from "autumn-js";
 
 const secretKey = env.autumnSecretKey();
 const autumn = secretKey ? new Autumn({ secretKey }) : null;
@@ -76,7 +73,11 @@ export const billing = {
   },
 
   /** Meter a consumed unit. Called by the block after a successful mutation. */
-  async track(args: { organizationId: string; resource: ResourceKey; value?: number }): Promise<void> {
+  async track(args: {
+    organizationId: string;
+    resource: ResourceKey;
+    value?: number;
+  }): Promise<void> {
     const featureId = RESOURCES[args.resource].featureId;
     if (!autumn || !featureId) return;
     try {
@@ -91,7 +92,11 @@ export const billing = {
   },
 
   /** Set an absolute count for non-consumable features such as seats. */
-  async setUsage(args: { organizationId: string; resource: ResourceKey; usage: number }): Promise<void> {
+  async setUsage(args: {
+    organizationId: string;
+    resource: ResourceKey;
+    usage: number;
+  }): Promise<void> {
     const featureId = RESOURCES[args.resource].featureId;
     if (!autumn || !featureId) return;
     try {
@@ -122,7 +127,11 @@ export const billing = {
   },
 
   /** Make sure an organisation exists as a billing customer. Idempotent. */
-  async ensureCustomer(args: { organizationId: string; name: string; email: string }): Promise<void> {
+  async ensureCustomer(args: {
+    organizationId: string;
+    name: string;
+    email: string;
+  }): Promise<void> {
     if (!autumn) return;
     try {
       await autumn.customers.create({

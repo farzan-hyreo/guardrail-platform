@@ -1,6 +1,9 @@
 /**
  * SOT: audit-contract, audit-wire
- * WHERE services/audit
+ * WHAT   Input and output schemas for reading the audit trail.
+ * WHY    Gateway and service parse the same schema, so neither can drift from the other.
+ * HOW    Read only. Rows are written by the evt.> consumer, never by a request.
+ * WHERE  services/audit
  */
 import { z } from "zod";
 

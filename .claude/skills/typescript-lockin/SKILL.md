@@ -49,6 +49,14 @@ optional fields silently overwrite real data.
 6. **`satisfies`, never an annotation,** on registry data. An annotation widens the literals
    and every derived union collapses to `string`. `const` type parameters on
    `defineResource` mean you do not even need `as const`.
+7. **Add a field to `RequestMeta`, add it to `canonicalRequest`.** The envelope's signature
+   covers the exact object `canonicalRequest` builds in `contracts/src/envelope.ts`, not
+   `requestMeta` itself. That object is typed
+   `satisfies Record<keyof RequestMeta | "payloadHash", unknown>`, so a field you add to
+   `requestMeta` and forget to add there is a **compile error**, not a field that quietly
+   lands on the unsigned side of the boundary. You will hit this the moment you extend
+   `RequestMeta` - go add the field to the canonical object in the same change, not as a
+   follow-up.
 
 ## Reading an error
 

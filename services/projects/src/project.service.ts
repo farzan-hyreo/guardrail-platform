@@ -4,6 +4,7 @@
  * WHY    Database isolation inside the service too: handlers hold business rules, this
  *        holds storage. Every signature takes organizationId first, so there is no
  *        function here capable of a cross-tenant query.
+ * HOW    organizationId always comes from ctx.orgId, which comes from the signed envelope.
  * WHERE  services/projects/src/project.handlers.ts
  */
 import "server-only";
@@ -14,7 +15,12 @@ import { db } from "./db";
 import { project } from "./schema";
 
 export const projectService = {
-  async list(args: { organizationId: string; limit: number; cursor?: string | null; includeArchived: boolean }) {
+  async list(args: {
+    organizationId: string;
+    limit: number;
+    cursor?: string | null;
+    includeArchived: boolean;
+  }) {
     const filters = [eq(project.organizationId, args.organizationId)];
     if (!args.includeArchived) filters.push(isNull(project.archivedAt));
     if (args.cursor) filters.push(lt(project.createdAt, new Date(args.cursor)));
