@@ -37,7 +37,7 @@ only the gateway needed the manual copy above.
 | `make web` | gateway + UI only |
 | `make services` | workers only |
 | `make logs` | tail every event crossing the bus - needs `observer.env` exported first (below) |
-| `make streams` | stream and consumer health |
+| `make streams` | stream and consumer health - needs a NATS credential too; `observer.env` does not cover it (JetStream API subjects aren't in its permissions) and no documented credential currently does - see `jetstream-service` |
 | `make subjects` | every subject the registry generates |
 | `make verify` | typecheck + Biome + architecture check |
 | `make fix` | format, autofix, repair violations |
@@ -71,7 +71,7 @@ psql $DATABASE_URL -c "select * from audit_log where request_id = '<id>'"
 
 | Symptom | First check |
 | --- | --- |
-| Every call is `SERVICE_UNAVAILABLE` | is the owning service running? `make streams` |
+| Every call is `SERVICE_UNAVAILABLE` | is the owning service running? Check its process/log directly - `make streams` needs a NATS credential no documented user currently has, see the Daily table above |
 | NATS log: `authentication error - Nkey ""` | that process sent no NATS credential - see First run above, or `infra/nats/RUNBOOK.md` |
 | NATS log: `Authorization Violation` | wrong NATS credential for that identity, or `auth.conf` is stale - `infra/nats/RUNBOOK.md` |
 | `UNTRUSTED_ENVELOPE` | `ENVELOPE_SECRET` mismatch between processes |

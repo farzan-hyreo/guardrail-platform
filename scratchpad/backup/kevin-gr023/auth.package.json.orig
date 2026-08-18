@@ -1,0 +1,33 @@
+{
+  "name": "@guardrail/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./session": "./src/session-cookie.ts",
+    "./schema": "./src/schema.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "auth:generate": "better-auth generate --config src/auth.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@guardrail/db": "workspace:*",
+    "@guardrail/guardrail": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "drizzle-orm": "^0.44.0",
+    "better-auth": "^1.3.0",
+    "autumn-js": "^0.1.30",
+    "@guardrail/env": "workspace:*",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "typescript": "^5.7.0"
+  }
+}

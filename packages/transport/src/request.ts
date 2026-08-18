@@ -56,7 +56,20 @@ export async function rpcRequest<TReply>(args: {
   }
 
   const answered = reply.ok ? reply.data : reply.error;
-  if (!verifyReply(reply.requestId, reply.ok, answered, reply.signature, env.envelopeSecret())) {
+  if (
+    !verifyReply(
+      /** From the envelope we sent, never from the reply we are checking. */
+      {
+        requestId: args.envelope.meta.requestId,
+        resource: args.envelope.meta.resource,
+        operation: args.envelope.meta.operation,
+        ok: reply.ok,
+      },
+      answered,
+      reply.signature,
+      env.envelopeSecret(),
+    )
+  ) {
     throw new ServiceError(
       "UNTRUSTED_ENVELOPE",
       `The reply on ${args.subject} is not signed by the owning service.`,

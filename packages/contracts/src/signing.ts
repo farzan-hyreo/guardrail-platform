@@ -13,7 +13,13 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { canonicalEvent, canonicalReply, canonicalRequest, type RequestMeta } from "./envelope";
+import {
+  canonicalEvent,
+  canonicalReply,
+  canonicalRequest,
+  type ReplyBinding,
+  type RequestMeta,
+} from "./envelope";
 
 function hmac(canonical: string, secret: string): string {
   return createHmac("sha256", secret).update(canonical).digest("base64url");
@@ -74,19 +80,22 @@ export function verifyEvent(
 }
 
 /**
- * Covers the outcome and the body, bound to the request it answers. Binding `requestId` is
- * what stops a reply captured from one request being replayed as the answer to another.
+ * Covers the outcome and the body, bound to the request AND the operation it answers. The
+ * binding is one object rather than three adjacent strings, which is the kind of argument
+ * list that gets transposed once and then verifies the wrong thing for a year.
+ *
+ * Verify with the resource and operation YOU asked for, never with values read back off the
+ * reply - a binding taken from the thing being checked checks nothing.
  */
-export function signReply(requestId: string, ok: boolean, data: unknown, secret: string): string {
-  return hmac(canonicalReply(requestId, ok, data), secret);
+export function signReply(binding: ReplyBinding, data: unknown, secret: string): string {
+  return hmac(canonicalReply(binding, data), secret);
 }
 
 export function verifyReply(
-  requestId: string,
-  ok: boolean,
+  binding: ReplyBinding,
   data: unknown,
   signature: string,
   secret: string,
 ): boolean {
-  return verifyAgainst(() => signReply(requestId, ok, data, secret), signature);
+  return verifyAgainst(() => signReply(binding, data, secret), signature);
 }

@@ -21,6 +21,7 @@ import {
   eventPayload as eventPayloadSchema,
   type InputOf,
   type OutputOf,
+  type ReplyBinding,
   type ReplyEnvelope,
   type RequestMeta,
   ServiceError,
@@ -111,6 +112,24 @@ export type ServiceRuntime = {
 
 type Binding = { readonly route: ServiceRoute; readonly entry: HandlerEntry };
 
+/** Everything a reply is bound to except its outcome, which `reject` and the success path
+ * each know for themselves. `RequestMeta` satisfies it structurally, so a refusal that has
+ * a verified meta simply hands it over. */
+type ReplyRoute = Omit<ReplyBinding, "ok">;
+
+/**
+ * The two refusals that happen before any meta can be trusted: bytes that are not an envelope
+ * at all, and the pre-signed `unreadable`. Neither can name an operation, and neither needs
+ * to - both verifiers compare the request id BEFORE they check the signature, and "unknown"
+ * matches no request, so these are refused for answering the wrong request and never reach
+ * the reply MAC at all.
+ */
+const UNROUTED: ReplyRoute = {
+  requestId: "unknown",
+  resource: "unknown",
+  operation: "unknown",
+};
+
 export function defineService(
   service: ServiceName,
   handlers: readonly HandlerEntry[],
@@ -152,7 +171,7 @@ export function defineService(
   const routes: readonly ServiceRoute[] = bindings.map((binding) => binding.route);
 
   function reject(
-    requestId: string,
+    route: ReplyRoute,
     code: string,
     message: string,
     data?: unknown,
@@ -160,8 +179,8 @@ export function defineService(
     const error = data === undefined ? { code, message } : { code, message, data };
     return {
       ok: false,
-      requestId,
-      signature: signReply(requestId, false, error, options.secret),
+      requestId: route.requestId,
+      signature: signReply({ ...route, ok: false }, error, options.secret),
       error,
     };
   }
@@ -176,11 +195,7 @@ export function defineService(
     // 5. Re-assert the permission the gateway claims to have checked. Cheap, and it means
     //    a gateway bug cannot become a data breach.
     if (!meta.permissions.includes(`${meta.resource}:${meta.operation}`)) {
-      return reject(
-        meta.requestId,
-        "PERMISSION_DENIED",
-        "Envelope does not carry this permission.",
-      );
+      return reject(meta, "PERMISSION_DENIED", "Envelope does not carry this permission.");
     }
 
     // 5b. Privilege escalation, the mirror of gateway 4b. `meta.role` is the caller's own
@@ -190,7 +205,7 @@ export function defineService(
     const refused = refusedRole(payload, meta.role);
     if (refused !== null) {
       return reject(
-        meta.requestId,
+        meta,
         "PERMISSION_DENIED",
         `Your ${meta.role} role cannot grant the ${refused} role.`,
       );
@@ -200,7 +215,7 @@ export function defineService(
   }
 
   const unreadable = reject(
-    "unknown",
+    UNROUTED,
     "UNTRUSTED_ENVELOPE",
     "The service could not read this message.",
   );
@@ -208,14 +223,14 @@ export function defineService(
   async function handle(rawEnvelope: unknown, subject: string): Promise<ReplyEnvelope<unknown>> {
     const parsed = envelopeSchema.safeParse(rawEnvelope);
     if (!parsed.success) {
-      return reject("unknown", "UNTRUSTED_ENVELOPE", "Malformed envelope.");
+      return reject(UNROUTED, "UNTRUSTED_ENVELOPE", "Malformed envelope.");
     }
     const { meta, payload, signature } = parsed.data;
 
     // 1. Signature, over the meta and the body together. Over the meta alone, orgId is
     //    authorised but the payload beside it is whatever the last publisher swapped in.
     if (!verifyRequest(meta, payload, signature, options.secret)) {
-      return reject(meta.requestId, "UNTRUSTED_ENVELOPE", "Envelope signature is not valid.");
+      return reject(meta, "UNTRUSTED_ENVELOPE", "Envelope signature is not valid.");
     }
 
     // 2. Route. meta.resource and meta.operation are already narrowed by the schema.
@@ -224,18 +239,14 @@ export function defineService(
         candidate.route.resource === meta.resource && candidate.route.operation === meta.operation,
     );
     if (binding === undefined) {
-      return reject(
-        meta.requestId,
-        "NOT_FOUND",
-        `No handler for ${meta.resource}.${meta.operation}.`,
-      );
+      return reject(meta, "NOT_FOUND", `No handler for ${meta.resource}.${meta.operation}.`);
     }
 
     // 3. Subject. The signed intent names one transport; this is where it arrived. A valid
     //    rpc envelope replayed onto the CMD stream would otherwise become durable.
     if (subject !== binding.route.subject) {
       return reject(
-        meta.requestId,
+        meta,
         "UNTRUSTED_ENVELOPE",
         `Envelope for ${binding.route.subject} arrived on ${subject}.`,
       );
@@ -244,7 +255,7 @@ export function defineService(
     // 4. Freshness. The deadline applies to rpc only; a command is durable by design.
     const freshness = checkFreshness(meta, binding.route.transport);
     if (!freshness.fresh) {
-      return reject(meta.requestId, freshness.code, freshness.message);
+      return reject(meta, freshness.code, freshness.message);
     }
 
     const refusal = reassertAuthority(meta, payload);
@@ -277,15 +288,24 @@ export function defineService(
       return {
         ok: true,
         requestId: meta.requestId,
-        signature: signReply(meta.requestId, true, data, options.secret),
+        signature: signReply(
+          {
+            requestId: meta.requestId,
+            resource: meta.resource,
+            operation: meta.operation,
+            ok: true,
+          },
+          data,
+          options.secret,
+        ),
         data,
       };
     } catch (error) {
       if (error instanceof ServiceError) {
-        return reject(meta.requestId, error.code, error.message, error.data);
+        return reject(meta, error.code, error.message, error.data);
       }
       console.error(`[${service}] ${meta.resource}.${meta.operation}`, error);
-      return reject(meta.requestId, "INTERNAL", "The service failed to handle this request.");
+      return reject(meta, "INTERNAL", "The service failed to handle this request.");
     }
   }
 

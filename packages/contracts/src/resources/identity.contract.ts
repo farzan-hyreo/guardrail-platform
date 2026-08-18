@@ -24,6 +24,13 @@ export const memberContract = {
   /**
    * A command, not an rpc: sending an invitation involves an email provider that can be
    * slow or down. The gateway accepts it durably and answers immediately.
+   *
+   * `role` is every declared role on purpose, and this enum is NOT what stops an admin
+   * minting an owner. A schema cannot see who is calling, so it cannot express "not above
+   * your own"; narrowing it would instead break an owner legitimately granting owner. The
+   * enum's job is the shape - a role that no organisation declares is refused here. The
+   * rule is enforced where the caller is known: gateway gate 4b and service gate 5b, both
+   * derived from `assignableRoles`, and both running before this schema is ever parsed.
    */
   create: {
     input: z.object({ email: z.string().email(), role: z.enum(ORG_ROLES) }),

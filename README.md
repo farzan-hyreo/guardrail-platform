@@ -213,6 +213,25 @@ detail; `/feature <description>` runs it.
 
 ## Trade-offs worth knowing
 
+**Seven Better Auth endpoints are still mounted, on purpose.** Better Auth publishes
+eighteen organisation endpoints behind the `/api/auth` catch-all. Eleven of them are now
+registry operations and the catch-all refuses those paths with a 410 naming the replacement -
+six were a second door beside a gate that already worked (`invite-member` is `member.create`,
+`remove-member` is `member.delete`), and the rest ran with no role gate, no rate limit, no
+plan gate and no `evt.*`, so an organisation could be deleted leaving no audit row. The seven
+that remain each act on something a signed envelope cannot name: `set-active` mutates the
+session rather than the organisation, and `accept-invitation` / `reject-invitation` /
+`get-invitation` are called by somebody who is not a member yet, so there is no `ctx.orgId` to
+scope them to. The list and the reason for each is in `apps/web/src/app/api/auth/superseded.ts`,
+which refuses to load if it names an operation the registry does not declare.
+
+**A user's first organisation is created at signup, not by the user.** `organization.create`
+exists and is gated at owner with a plan limit, but it makes a *second* workspace. The first
+one is a `databaseHooks.user.create.after` hook in `packages/auth/src/auth.ts`, because a
+user-callable create endpoint is one that can be looped to mint tenants - which is exactly
+what the ungated Better Auth endpoint allowed. It also means no account ever has a null
+active organisation, which is what used to send new users into a sign-in redirect loop.
+
 **Better Auth writes, identity service reads.** Better Auth owns cookies and HTTP, so it
 runs in the gateway and writes `member` / `invitation` / `organization`. The identity
 service owns the migrations and the queries. That keeps Better Auth's hooks and expiry logic

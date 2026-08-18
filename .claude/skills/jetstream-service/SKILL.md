@@ -15,6 +15,18 @@ rpcSubject("project", "create")   // "rpc.project.create"
 A string literal like `"rpc.project.create"` is an ESLint error (`no-raw-subjects`). A typo
 in a subject is a request that hangs until it times out, with no compiler to catch it.
 
+**`no-raw-subjects` matches inside comments too.** `tools/guardrail-check.ts`'s backstop
+(`RAW_SUBJECT` in `noRawSubjects`) regexes the raw file text for `["'`]` immediately followed
+by `rpc.`/`cmd.`/`evt.` and two more segments - it has no idea whether that quote or backtick
+opened a string literal or just formatted a code span inside a `//` or `/** */` comment. A
+doc comment that writes `` `evt.member.create` `` or `"cmd.member.create"` to explain an
+attack or show an example trips the exact same violation as writing it in code, because the
+backtick or quote right before the subject is all the regex is checking for. To describe a
+literal subject in a comment without tripping it, don't put a quote, apostrophe or backtick
+directly against the `rpc`/`cmd`/`evt`: write it bare (`evt.member.create`, no wrapping
+marks) or break the run-on with a word (`` `evt` stream's `member.create` event ``, split so
+no delimiter sits immediately before `evt.`/`member.create` as one continuous match).
+
 `pnpm subjects` prints every legal subject.
 
 ## Choosing a transport
@@ -80,21 +92,31 @@ server inside the stream's duplicate window. A *redelivery* after a handler fail
 
 ## Debugging
 
+NATS authenticates every connection now, and `auth.conf` is least-privilege per identity -
+the `nats` CLI needs a credential too, and not every debugging command has one that fits:
+
 ```bash
-make streams                                  # stream + consumer health, pending counts
-nats sub 'evt.>'                              # watch facts as they happen
-nats sub 'rpc.project.>'                      # is anyone even listening
-nats consumer report EVT                      # is a consumer falling behind
-nats stream view CMD                          # what is stuck in the command stream
+set -a; . infra/nats/creds/observer.env; set +a
+nats sub 'evt.>'                              # watch facts as they happen - observer covers this
 ```
+
+`observer`'s permissions (`infra/nats/auth.conf`) are exactly `subscribe: evt.>` and nothing
+else - no `rpc.*`, no `$JS.API.>`. That means `make streams`, `nats consumer report`,
+`nats stream view` and `nats sub 'rpc.project.>'` are not covered by any credential
+documented in `infra/nats/RUNBOOK.md` as of this writing. If one of them errors with
+`Permissions Violation`, that is not a config mistake to chase - check
+`infra/nats/RUNBOOK.md` for whether a broader debug credential has since been added, or ask
+whoever owns `infra/nats/` before assuming these still work as written.
 
 | Symptom | Cause |
 | --- | --- |
 | `SERVICE_UNAVAILABLE` | no subscriber. The service is not running, or the subject differs. |
+| `authentication error - Nkey ""` | the `nats` CLI has no credential - see above |
+| `Permissions Violation` from a `nats` CLI command | that identity's `auth.conf` permissions don't cover the subject - see above, this may be a known gap rather than something to fix locally |
 | Reply is `UNTRUSTED_ENVELOPE` | `ENVELOPE_SECRET` differs between processes. |
 | Handler runs twice | consumer is not idempotent. Fix the handler, not the stream. |
 | Consumer pending climbing | handler throws and NAKs. Check the service log. |
-| Works locally, not in prod | streams were never created. Run `pnpm nats:bootstrap`. |
+| Works locally, not in prod | streams were never created. Run `pnpm nats:bootstrap` with `bootstrap.env` exported. |
 
 ## Never
 

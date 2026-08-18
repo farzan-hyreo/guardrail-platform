@@ -35,8 +35,9 @@ export type SupersededEndpoint = {
 };
 
 /**
- * Eleven of the eighteen. The seven left mounted are listed in KEPT below with the reason,
- * because "we forgot" and "we decided" look identical in a file that only lists refusals.
+ * Twelve of the twenty-two Better Auth mounts. The ten left open are listed in KEPT below
+ * with the reason, because "we forgot" and "we decided" look identical in a file that only
+ * lists refusals - and four of these were found by the check rather than by me.
  */
 export const SUPERSEDED: readonly SupersededEndpoint[] = [
   { path: "organization/create", by: "organization:create", instead: "organization.create" },
@@ -44,6 +45,19 @@ export const SUPERSEDED: readonly SupersededEndpoint[] = [
   { path: "organization/delete", by: "organization:delete", instead: "organization.remove" },
   {
     path: "organization/get-full-organization",
+    by: "organization:read",
+    instead: "organization.current",
+  },
+  /**
+   * `get-organization` is the same read as `get-full-organization` with fewer fields, and it
+   * takes an arbitrary `organizationId` or `organizationSlug` rather than only the active
+   * one. Better Auth does check membership before answering - but on the way to refusing it
+   * calls `setActiveOrganization(token, null)`, so a GET that fails clears the caller's
+   * active organisation. A read with a session side effect and no rate limit in front of it
+   * is worth closing on its own; that it duplicates a routed operation settles it.
+   */
+  {
+    path: "organization/get-organization",
     by: "organization:read",
     instead: "organization.current",
   },
@@ -78,6 +92,12 @@ export const KEPT: Readonly<Record<string, string>> = {
   "organization/check-slug": "Read-only availability check. No tenant data crosses it.",
   "organization/has-permission":
     "Read-only, evaluates the caller's own role against the same res.* statements the registry generates.",
+  "organization/get-active-member":
+    "Returns the caller's own member row in the organisation they are already in - id, role, joined date. It answers 'who am I here', which the viewer context in every page already knows. There is no query parameter that makes it name somebody else, so there is nothing for a role gate to protect.",
+  "organization/get-active-member-role":
+    "The same answer as get-active-member with one field. Kept for the same reason: a caller's own role is not a fact a gate can withhold from them.",
+  "organization/list-user-invitations":
+    "Lists invitations addressed to the caller's own verified email, across organisations they are not members of - so there is no ctx.orgId to scope it to, the same structural reason accept-invitation is kept. Note it is NOT organization/list-invitations, which is superseded: that one lists an organisation's pending invitations and is admin-gated as invitation:read. One word apart, opposite scoping. Better Auth refuses the `email` query parameter for browser calls and requires a verified address, so a caller cannot ask it about anyone else.",
 };
 
 /**

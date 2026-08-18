@@ -142,6 +142,12 @@ processes is this"; the HMAC answers "did the gateway authorise this org id". A 
 service still holds a legitimate key — that is why `defineService` verifies the envelope
 even for traffic the server let through.
 
+**What this does not close on its own:** a legitimately-captured, validly-signed command or
+event can still be replayed after JetStream's own duplicate window expires - "requires the
+gateway's key" bounds *who* can send it, not *how many times* the same one can be sent. A
+fix is tracked (`gr-017`) but is not part of the request path yet as of 2026-08-18 - this
+section will be updated once it lands rather than describe it ahead of time.
+
 ## Changing the registry
 
 Adding an operation, a resource, or a service means the subjects change:

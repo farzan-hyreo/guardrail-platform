@@ -609,9 +609,15 @@ function noUnverifiedConsumer(file: string, tree: ts.SourceFile): void {
  * explicit written verdict, and the table can never silently fall behind the vendor.
  */
 const AUTH_MOUNT = join("apps", "web", "src", "app", "api", "auth");
-const SUPERSESSION_TABLE = "SUPERSEDED_ENDPOINTS";
+const SUPERSESSION_TABLE = "SUPERSEDED";
+const KEPT_TABLE = "KEPT";
 const AUTH_MOUNT_CALL = "toNextJsHandler";
 const OPERATION_REFERENCE = /^([A-Za-z0-9_$]+):([A-Za-z0-9_$]+)$/;
+
+/** The vendor's paths carry a leading slash and the tables are written without one. */
+function bare(path: string): string {
+  return path.replace(/^\/+/, "");
+}
 
 /**
  * Every organisation path Better Auth actually serves over HTTP. An endpoint with no `path`
@@ -620,6 +626,11 @@ const OPERATION_REFERENCE = /^([A-Za-z0-9_$]+):([A-Za-z0-9_$]+)$/;
  * treated as "nothing to check": a completeness check that silently compares against an empty
  * set is worse than no check.
  */
+/** Anything `in` can be asked of. A vendor endpoint is a function with properties hung on it. */
+function isRecordLike(value: unknown): value is object {
+  return value !== null && (typeof value === "object" || typeof value === "function");
+}
+
 async function mountedOrgEndpoints(): Promise<readonly string[] | null> {
   try {
     const from = createRequire(join(ROOT, "packages", "auth", "src", "auth.ts"));
@@ -633,7 +644,10 @@ async function mountedOrgEndpoints(): Promise<readonly string[] | null> {
     if (typeof endpoints !== "object" || endpoints === null) return null;
     const paths: string[] = [];
     for (const endpoint of Object.values(endpoints)) {
-      if (typeof endpoint !== "object" || endpoint === null || !("path" in endpoint)) continue;
+      // A Better Auth endpoint is a *callable* carrying `.path`, not a plain object. Guarding
+      // on `typeof === "object"` alone skipped every one of them and reported the vendor as
+      // unreadable - correct-by-accident, and useless. Found by running it, not by reading it.
+      if (!isRecordLike(endpoint) || !("path" in endpoint)) continue;
       if (typeof endpoint.path === "string") paths.push(endpoint.path);
     }
     return paths.length === 0 ? null : [...paths].sort();
@@ -675,22 +689,57 @@ type Supersession = {
   readonly entries: ReadonlyMap<string, string>;
 };
 
-/** The table as written: endpoint path -> its value, or "" for a value that names no operation. */
-function supersessionIn(tree: ts.SourceFile): Supersession | undefined {
-  for (const [name, value] of topLevelValues(tree)) {
-    if (name !== SUPERSESSION_TABLE) continue;
-    const literal = unwrap(value);
-    if (!ts.isObjectLiteralExpression(literal)) continue;
-    const entries = new Map<string, string>();
-    for (const property of literal.properties) {
-      const key = propertyName(property);
-      if (key === undefined || !ts.isPropertyAssignment(property)) continue;
-      const written = unwrap(property.initializer);
-      entries.set(key, ts.isStringLiteralLike(written) ? written.text : "");
-    }
-    return { declaration: literal, entries };
+function stringProperty(object: ts.ObjectLiteralExpression, name: string): string | undefined {
+  for (const property of object.properties) {
+    if (propertyName(property) !== name || !ts.isPropertyAssignment(property)) continue;
+    const written = unwrap(property.initializer);
+    if (ts.isStringLiteralLike(written)) return written.text;
   }
   return undefined;
+}
+
+/**
+ * Both halves of the verdict, keyed by path: `SUPERSEDED` is a list of
+ * `{ path, by, instead }` and carries the operation that replaced the endpoint; `KEPT` is a
+ * path -> reason record and carries none. A path in either has been decided about, which is
+ * the property this rule is checking - "we forgot" and "we decided" look identical otherwise.
+ */
+function namedLiteral(values: ReadonlyMap<string, ts.Expression>, name: string) {
+  const value = values.get(name);
+  return value === undefined ? undefined : unwrap(value);
+}
+
+/** `SUPERSEDED`: each `{ path, by }` records the operation that replaced the endpoint. */
+function readSuperseded(node: ts.Expression | undefined, into: Map<string, string>): boolean {
+  if (node === undefined || !ts.isArrayLiteralExpression(node)) return false;
+  for (const element of node.elements) {
+    const object = unwrap(element);
+    if (!ts.isObjectLiteralExpression(object)) continue;
+    const path = stringProperty(object, "path");
+    if (path !== undefined) into.set(bare(path), stringProperty(object, "by") ?? "");
+  }
+  return true;
+}
+
+/** `KEPT`: path -> the reason it stays mounted. Decided about, but replaced by nothing. */
+function readKept(node: ts.Expression | undefined, into: Map<string, string>): boolean {
+  if (node === undefined || !ts.isObjectLiteralExpression(node)) return false;
+  for (const property of node.properties) {
+    const key = propertyName(property);
+    if (key !== undefined) into.set(bare(key), "");
+  }
+  return true;
+}
+
+function supersessionIn(tree: ts.SourceFile): Supersession | undefined {
+  const values = topLevelValues(tree);
+  const superseded = namedLiteral(values, SUPERSESSION_TABLE);
+  const kept = namedLiteral(values, KEPT_TABLE);
+  const entries = new Map<string, string>();
+  const hasSuperseded = readSuperseded(superseded, entries);
+  const hasKept = readKept(kept, entries);
+  const declaration = hasSuperseded ? superseded : hasKept ? kept : undefined;
+  return declaration === undefined ? undefined : { declaration, entries };
 }
 
 /**
@@ -714,12 +763,12 @@ async function everyEndpointHasAVerdict(file: string, at: number, table: Superse
     return;
   }
   for (const path of mounted) {
-    if (table.entries.has(path)) continue;
+    if (table.entries.has(bare(path))) continue;
     report(
       file,
       at,
       AUTH_RULE,
-      `Better Auth mounts '${path}' and ${SUPERSESSION_TABLE} does not mention it, so it is reachable with no minRole, no permission gate, no rate limit, no plan gate and no audit event. Give it a verdict: the 'resource:operation' that supersedes it, or a string saying why it stays open.`,
+      `Better Auth mounts '${path}' and neither ${SUPERSESSION_TABLE} nor ${KEPT_TABLE} mentions it, so it is reachable with no minRole, no permission gate, no rate limit, no plan gate and no audit event. Give it a verdict: add it to ${SUPERSESSION_TABLE} with the operation that replaces it, or to ${KEPT_TABLE} with the reason it stays open.`,
     );
   }
 }

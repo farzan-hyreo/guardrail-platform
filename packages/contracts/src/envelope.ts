@@ -195,17 +195,42 @@ export function contentHash(value: unknown): string {
 type MacDomain = "request" | "event";
 
 /**
+ * Which key signed these bytes. One value today and no key selection anywhere - this is a
+ * reserved slot in the format, not a migration.
+ *
+ * It is here now because a change to the signed bytes is free only until the first real
+ * message exists, and expensive forever afterwards. Making one breaking change instead of
+ * two is the whole reason it is landing beside `domain`.
+ *
+ * NOTE, and this is the load-bearing part: `keyId` is deliberately NOT a field of
+ * `requestMeta`, so it does not arrive on the wire and nothing reads one from a message.
+ * A caller therefore cannot nominate the key that checks their own forgery - the JWT `kid`
+ * confusion has no surface here because the choice is never offered. Both signer and
+ * verifier take this value from their own build. When key rotation does arrive, the rule
+ * that keeps that true is: resolve an id against a closed set the verifier owns, refuse an
+ * unrecognised one outright, and never fall back to another key - an id may narrow the
+ * search, it may never grant trust.
+ */
+export const KEY_IDS = ["v1"] as const;
+
+export type KeyId = (typeof KEY_IDS)[number];
+
+/** The only key this build signs with, and the only one it will verify against. */
+export const CURRENT_KEY_ID: KeyId = "v1";
+
+/**
  * The exact bytes an envelope signature covers: the domain, every field of the meta, and a
  * hash of the payload.
  *
  * The `satisfies` is the load-bearing part. `Record<keyof RequestMeta | "payloadHash" |
- * "domain", ...>` accepts no missing key and no extra one, so adding a field to
+ * "domain" | "keyId", ...>` accepts no missing key and no extra one, so adding a field to
  * `requestMeta` without adding it here fails to compile. Without that, a new field lands on
  * the unsigned side of the boundary and nothing says so.
  */
 function canonicalEnvelope(domain: MacDomain, meta: RequestMeta, payload: unknown): string {
   const canonical = {
     domain,
+    keyId: CURRENT_KEY_ID,
     requestId: meta.requestId,
     orgId: meta.orgId,
     userId: meta.userId,
@@ -222,7 +247,7 @@ function canonicalEnvelope(domain: MacDomain, meta: RequestMeta, payload: unknow
      */
     traceparent: meta.traceparent ?? null,
     payloadHash: contentHash(payload),
-  } satisfies Record<keyof RequestMeta | "payloadHash" | "domain", unknown>;
+  } satisfies Record<keyof RequestMeta | "payloadHash" | "domain" | "keyId", unknown>;
   return canonicalJson(canonical);
 }
 
@@ -236,11 +261,37 @@ export function canonicalEvent(meta: RequestMeta, payload: unknown): string {
 }
 
 /**
- * The exact bytes a reply signature covers. `requestId` is in there deliberately: without it
- * a reply captured from one request is a valid answer to every other.
+ * What a reply signature is bound to. `requestId` alone was not enough: it is chosen by the
+ * caller - the proxy echoes an inbound x-request-id back out - so a captured reply could be
+ * aimed at a DIFFERENT operation that reuses the same id, and neither the id check nor the
+ * signature check would notice. Naming the operation in the signed bytes is what stops that.
  */
-export function canonicalReply(requestId: string, ok: boolean, data: unknown): string {
-  return canonicalJson({ requestId, ok, dataHash: contentHash(data) });
+export type ReplyBinding = {
+  readonly requestId: string;
+  readonly resource: string;
+  readonly operation: string;
+  readonly ok: boolean;
+};
+
+/**
+ * The exact bytes a reply signature covers: what it answers, and the body it answers with.
+ *
+ * The `satisfies` does the same job here as in `canonicalEnvelope`: `Record<keyof
+ * ReplyBinding | "dataHash" | "keyId", ...>` accepts no missing key and no extra one, so a
+ * field added to ReplyBinding that is not signed here fails to compile rather than sitting
+ * unsigned. `keyId` is in here as well as in the envelope MAC on purpose: freezing the
+ * format with only one of the two halves reserved would force the other to break later.
+ */
+export function canonicalReply(binding: ReplyBinding, data: unknown): string {
+  const canonical = {
+    keyId: CURRENT_KEY_ID,
+    requestId: binding.requestId,
+    resource: binding.resource,
+    operation: binding.operation,
+    ok: binding.ok,
+    dataHash: contentHash(data),
+  } satisfies Record<keyof ReplyBinding | "dataHash" | "keyId", unknown>;
+  return canonicalJson(canonical);
 }
 
 /* ── Freshness ───────────────────────────────────────────────────────────── */

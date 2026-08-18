@@ -247,7 +247,20 @@ export async function dispatch<K extends ResourceKey, O extends OperationOf<K>>(
     });
   }
   const answered = reply.ok ? reply.data : reply.error;
-  if (!verifyReply(reply.requestId, reply.ok, answered, reply.signature, deps.secret)) {
+  if (
+    !verifyReply(
+      /** Ours, not the reply's: the operation we asked for is the operation we accept. */
+      {
+        requestId: meta.requestId,
+        resource: meta.resource,
+        operation: meta.operation,
+        ok: reply.ok,
+      },
+      answered,
+      reply.signature,
+      deps.secret,
+    )
+  ) {
     return fail({ code: "UNTRUSTED_ENVELOPE", message: "The reply signature is not valid." });
   }
 

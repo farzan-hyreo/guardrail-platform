@@ -157,7 +157,7 @@ export const identityService = {
     ownerRole: string;
   }) {
     const id = crypto.randomUUID();
-    return db.transaction(async (tx) => {
+    return await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(organization)
         .values({ id, name: args.name, slug: args.slug })
@@ -192,7 +192,7 @@ export const identityService = {
    * organisation would be a row no query in the product can ever reach again.
    */
   async deleteOrganization(organizationId: string) {
-    return db.transaction(async (tx) => {
+    return await db.transaction(async (tx) => {
       await tx.delete(invitation).where(eq(invitation.organizationId, organizationId));
       await tx.delete(member).where(eq(member.organizationId, organizationId));
       const [row] = await tx
