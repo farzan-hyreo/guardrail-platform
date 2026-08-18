@@ -1,0 +1,22 @@
+{
+  "name": "@guardrail/transport",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guardrail/contracts": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "@nats-io/jetstream": "^3.0.0",
+    "@nats-io/transport-node": "^3.0.0",
+    "@guardrail/env": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

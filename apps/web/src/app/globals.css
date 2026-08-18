@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/**
+ * SOT: design-tokens, theme, shadcn-tokens
+ * shadcn's token contract. Never hardcode a colour in a component; change a token here
+ * and the whole platform, light and dark, follows.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: oklch(99% 0 0);
+  --foreground: oklch(21% 0.02 260);
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(21% 0.02 260);
+  --primary: oklch(45% 0.16 258);
+  --primary-foreground: oklch(98% 0 0);
+  --secondary: oklch(96% 0.005 260);
+  --secondary-foreground: oklch(25% 0.02 260);
+  --muted: oklch(96% 0.005 260);
+  --muted-foreground: oklch(52% 0.02 260);
+  --accent: oklch(96% 0.005 260);
+  --accent-foreground: oklch(25% 0.02 260);
+  --destructive: oklch(56% 0.19 25);
+  --destructive-foreground: oklch(98% 0 0);
+  --border: oklch(91% 0.006 260);
+  --input: oklch(91% 0.006 260);
+  --ring: oklch(45% 0.16 258);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(17% 0.015 260);
+    --foreground: oklch(96% 0.005 260);
+    --card: oklch(21% 0.018 260);
+    --card-foreground: oklch(96% 0.005 260);
+    --primary: oklch(70% 0.14 258);
+    --primary-foreground: oklch(17% 0.015 260);
+    --secondary: oklch(26% 0.018 260);
+    --secondary-foreground: oklch(96% 0.005 260);
+    --muted: oklch(26% 0.018 260);
+    --muted-foreground: oklch(70% 0.015 260);
+    --accent: oklch(26% 0.018 260);
+    --accent-foreground: oklch(96% 0.005 260);
+    --border: oklch(30% 0.02 260);
+    --input: oklch(30% 0.02 260);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}

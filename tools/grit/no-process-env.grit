@@ -1,0 +1,12 @@
+// SOT: no-process-env, grit-plugin, env-lint
+// Every environment variable is declared once in @guardrail/env, so a missing secret fails
+// at boot rather than on a customer's request.
+language js
+
+`process.env` where {
+  register_diagnostic(
+    span = $match,
+    message = "Read environment variables through @guardrail/env. Add the variable there and to .env.example.",
+    severity = "error"
+  )
+}

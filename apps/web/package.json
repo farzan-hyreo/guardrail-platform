@@ -1,0 +1,40 @@
+{
+  "name": "@guardrail/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guardrail/auth": "workspace:*",
+    "@guardrail/billing": "workspace:*",
+    "@guardrail/contracts": "workspace:*",
+    "@guardrail/guardrail": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "@guardrail/transport": "workspace:*",
+    "@guardrail/ui": "workspace:*",
+    "@tanstack/react-query": "^5.62.0",
+    "@trpc/client": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "@trpc/tanstack-react-query": "^11.0.0",
+    "autumn-js": "^0.1.30",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "superjson": "^2.2.2",
+    "zod": "^4.0.0",
+    "@guardrail/env": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

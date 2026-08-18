@@ -1,0 +1,13 @@
+// SOT: require-server-only, grit-plugin, server-only-lint
+// A database URL or a signing secret in a client bundle is not a bug found in review.
+// Biome 2.5+ applies plugin fixes with `biome check --write --unsafe`.
+language js
+
+file($body) where {
+  $body <: not contains `import "server-only"`,
+  register_diagnostic(
+    span = $body,
+    message = "Missing `import \"server-only\";`. This module reaches the database, a secret or the bus and must never be bundled for the browser.",
+    severity = "error"
+  )
+}

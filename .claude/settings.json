@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git checkout:*)",
+      "Bash(git rebase:*)"
+    ],
+    "allow": [
+      "Bash(pnpm sot:*)",
+      "Bash(pnpm subjects:*)",
+      "Bash(pnpm verify:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(make streams:*)",
+      "Bash(nats sub:*)",
+      "Bash(nats stream:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}

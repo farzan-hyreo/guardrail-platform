@@ -1,0 +1,124 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "root": true,
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!**/node_modules", "!**/.next", "!**/dist", "!**/.turbo", "!**/drizzle"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "double", "trailingCommas": "all", "semicolons": "always" }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
+  },
+  "plugins": [
+    { "path": "./tools/grit/no-raw-subjects.grit", "includes": ["**/*.ts", "**/*.tsx", "!packages/registry/**", "!packages/transport/**"] },
+    { "path": "./tools/grit/no-process-env.grit", "includes": ["**/*.ts", "!packages/env/**", "!**/drizzle.config.ts"] },
+    { "path": "./tools/grit/require-server-only.grit", "includes": ["**/*.service.ts", "**/*.adapter.ts", "**/*.handlers.ts", "**/src/db.ts"] }
+  ],
+  "linter": {
+    "enabled": true,
+    "domains": { "next": "recommended", "react": "recommended" },
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": { "level": "warn", "options": { "allow": ["error", "warn", "info"] } },
+        "useAwait": "error"
+      },
+      "style": {
+        "useImportType": "error",
+        "useExportType": "error",
+        "useConst": "error",
+        "noNonNullAssertion": "error",
+        "useNamingConvention": {
+          "level": "error",
+          "options": { "strictCase": false, "conventions": [{ "selector": { "kind": "typeLike" }, "formats": ["PascalCase"] }] }
+        }
+      },
+      "complexity": { "noExcessiveCognitiveComplexity": { "level": "warn", "options": { "maxAllowedComplexity": 20 } } },
+      "correctness": { "noUnusedImports": "error", "noUnusedVariables": "error" },
+      "nursery": { "noFloatingPromises": "error" }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/registry/**", "packages/contracts/**", "packages/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "server-only": "This package is client-safe and must stay that way.",
+                  "@guardrail/db": "This package is client-safe and must stay that way.",
+                  "@guardrail/env": "This package is client-safe and must stay that way.",
+                  "@guardrail/transport": "This package is client-safe and must stay that way."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/db": "The gateway does not talk to a database. Ask the owning service over the bus.",
+                  "drizzle-orm": "The gateway does not talk to a database. Ask the owning service over the bus.",
+                  "pg": "The gateway does not talk to a database. Ask the owning service over the bus."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/components/**", "apps/web/src/features/**/*.tsx", "packages/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@guardrail/guardrail": "Client code reads plan and permission state from useViewer(), or calls the API through useTRPC().",
+                  "@guardrail/auth": "Import @guardrail/auth/client in the browser.",
+                  "@guardrail/billing": "Client code reads entitlements from useViewer()."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/gateway/routers/**"],
+      "linter": {
+        "rules": {
+          "complexity": { "noExcessiveCognitiveComplexity": { "level": "error", "options": { "maxAllowedComplexity": 1 } } }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.config.ts", "scripts/**", "tools/**"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    }
+  ]
+}

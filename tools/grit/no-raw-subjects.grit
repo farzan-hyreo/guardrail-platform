@@ -1,0 +1,14 @@
+// SOT: no-raw-subjects, grit-plugin, subject-lint
+// A subject typed by hand is a subject that will eventually be typo'd, and a typo'd
+// subject is a request that hangs until it times out with no compiler to catch it.
+language js
+
+`$subject` where {
+  $subject <: string(),
+  $subject <: r"(rpc|cmd|evt)\.[a-zA-Z]+\.[a-zA-Z]+",
+  register_diagnostic(
+    span = $subject,
+    message = "Build subjects with rpcSubject/commandSubject/eventSubject from @guardrail/registry. A literal cannot be checked by the compiler.",
+    severity = "error"
+  )
+}

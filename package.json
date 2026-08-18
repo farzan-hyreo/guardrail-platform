@@ -1,0 +1,40 @@
+{
+  "name": "guardrail-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:web": "turbo run dev --filter=@guardrail/web",
+    "dev:services": "turbo run dev --filter=./services/*",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "biome lint .",
+    "typecheck": "turbo run typecheck",
+    "verify": "pnpm typecheck && pnpm check && pnpm guardrail",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f nats",
+    "nats:bootstrap": "tsx scripts/bootstrap-streams.ts",
+    "nats:watch": "nats sub 'evt.>' --server localhost:4222",
+    "db:generate": "turbo run db:generate",
+    "db:migrate": "turbo run db:migrate",
+    "auth:generate": "pnpm --filter @guardrail/auth auth:generate",
+    "sot": "bash scripts/sot.sh",
+    "sot:map": "bash scripts/sot.sh --map",
+    "subjects": "tsx scripts/subjects.ts",
+    "autumn:plan": "tsx scripts/autumn-plan.ts",
+    "ui:add": "pnpm --filter @guardrail/ui dlx shadcn@latest add",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write --unsafe .",
+    "guardrail": "tsx tools/guardrail-check.ts",
+    "guardrail:fix": "tsx tools/guardrail-check.ts --fix"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "tsx": "^4.19.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.9.0"
+  }
+}

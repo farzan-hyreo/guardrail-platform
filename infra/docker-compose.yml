@@ -1,0 +1,39 @@
+# SOT: infra, docker-compose, nats-server, local-stack
+# Everything the platform needs locally: NATS with JetStream, and Postgres.
+services:
+  nats:
+    image: nats:2.10-alpine
+    command:
+      - "--jetstream"
+      - "--store_dir=/data"
+      - "--http_port=8222"
+    ports:
+      - "4222:4222"   # client
+      - "8222:8222"   # monitoring: http://localhost:8222/varz
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: guardrail
+      POSTGRES_PASSWORD: guardrail
+      POSTGRES_DB: guardrail
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guardrail"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  nats-data:
+  pg-data:

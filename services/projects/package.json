@@ -1,0 +1,27 @@
+{
+  "name": "@guardrail/service-projects",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@guardrail/contracts": "workspace:*",
+    "@guardrail/db": "workspace:*",
+    "@guardrail/guardrail": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "@guardrail/transport": "workspace:*",
+    "drizzle-orm": "^0.44.0",
+    "@guardrail/env": "workspace:*"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

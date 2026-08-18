@@ -1,0 +1,23 @@
+{
+  "name": "@guardrail/guardrail",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./gateway": "./src/gateway.ts",
+    "./service": "./src/service.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guardrail/contracts": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "@guardrail/transport": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

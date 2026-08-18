@@ -1,0 +1,29 @@
+{
+  "name": "@guardrail/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/components/ui/*.tsx",
+    "./lib/utils": "./src/lib/utils.ts",
+    "./gate": "./src/components/gate.tsx",
+    "./viewer": "./src/components/viewer.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guardrail/registry": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.7.0"
+  }
+}

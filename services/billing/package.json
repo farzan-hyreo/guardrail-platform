@@ -1,0 +1,23 @@
+{
+  "name": "@guardrail/service-billing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guardrail/contracts": "workspace:*",
+    "@guardrail/guardrail": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "@guardrail/transport": "workspace:*",
+    "@guardrail/billing": "workspace:*",
+    "@guardrail/env": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
