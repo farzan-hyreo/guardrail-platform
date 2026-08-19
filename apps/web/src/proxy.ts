@@ -2,8 +2,12 @@
  * SOT: proxy, middleware, request-id, pathname-header, session-cookie-check
  * WHAT   Next.js 16 renamed middleware.ts to proxy.ts. This is that file.
  * WHY    Two jobs: mint the request id that follows a request across every service, and
- *        expose the pathname so the dashboard layout can run the route guard.
- *        Authorisation does not happen here - the proxy cannot see the database.
+ *        expose the pathname so the dashboard layout can run the route guard. The redirect
+ *        below is a fast, cookie-only PRESENCE check, not authorisation - it exists only to
+ *        stop someone with no session at all from rendering a page that will immediately
+ *        bounce. It cannot see the database, so it cannot tell a live session from a revoked
+ *        one, and it does not know a role, a permission or an org. The dashboard layout,
+ *        which can see the database, remains the one authority for all of that.
  * HOW    This is the only place in the platform that mints a request id, and it is always
  *        server-minted with `crypto.randomUUID()` - an inbound `x-request-id` is discarded,
  *        never read. It used to pass a caller-supplied id through when it matched a shape
