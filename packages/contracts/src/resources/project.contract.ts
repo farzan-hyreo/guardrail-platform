@@ -11,13 +11,15 @@
  */
 import { z } from "zod";
 
+import { wireDate } from "../wire";
+
 export const projectDto = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
   description: z.string().nullable(),
-  archivedAt: z.date().nullable(),
-  createdAt: z.date(),
+  archivedAt: wireDate.nullable(),
+  createdAt: wireDate,
 });
 
 export const projectContract = {

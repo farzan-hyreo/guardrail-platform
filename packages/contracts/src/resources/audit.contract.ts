@@ -7,6 +7,8 @@
  */
 import { z } from "zod";
 
+import { wireDate } from "../wire";
+
 export const auditContract = {
   read: {
     input: z.object({
@@ -22,7 +24,7 @@ export const auditContract = {
           actorId: z.string(),
           actorRole: z.string(),
           outcome: z.string(),
-          createdAt: z.date(),
+          createdAt: wireDate,
         }),
       ),
     }),

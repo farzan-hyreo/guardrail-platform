@@ -168,6 +168,36 @@ export function defineService(
     };
   });
 
+  /**
+   * The reverse of the two checks above, and the one that was missing.
+   *
+   * Those prove no handler answers for something it should not. This proves nothing the
+   * registry assigned goes unanswered - and without it a missing handler is not an error at
+   * all, because `routes` below is built FROM the handler list, so the subject is simply
+   * never subscribed. The gateway then publishes to `rpc.project.update`, nobody answers,
+   * the request hangs to its timeout, and the caller is told "the projects service did not
+   * respond" while that service is up, healthy, and logging the subjects it does serve
+   * three lines above. The bus ACLs even grant the subscription, because they are generated
+   * from the same registry.
+   */
+  const unimplemented = ROUTES.filter(
+    (route) =>
+      route.owner === service &&
+      !bindings.some(
+        (binding) =>
+          binding.route.resource === route.resource && binding.route.operation === route.operation,
+      ),
+  );
+  if (unimplemented.length > 0) {
+    throw new Error(
+      `Service '${service}' does not implement ${unimplemented
+        .map((route) => `${route.resource}.${route.operation}`)
+        .join(", ")}, which the registry assigns to it. The gateway will publish to ${unimplemented
+        .map((route) => route.subject)
+        .join(", ")} and nothing will answer.`,
+    );
+  }
+
   const routes: readonly ServiceRoute[] = bindings.map((binding) => binding.route);
 
   function reject(

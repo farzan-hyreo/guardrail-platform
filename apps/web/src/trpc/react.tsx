@@ -3,7 +3,8 @@
  */
 "use client";
 
-import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
+import { env } from "@guardrail/env";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import { useState } from "react";
@@ -28,7 +29,11 @@ export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
     createTRPCClient<AppRouter>({
       links: [
         httpBatchLink({
-          url: `${typeof window === "undefined" ? (process.env.NEXT_PUBLIC_APP_URL ?? "") : ""}/api/trpc`,
+          // Through @guardrail/env, not process.env: this is a .tsx, which the no-process-env
+          // plugin did not cover until its glob was widened. env.publicAppUrl spells the key
+          // out literally for exactly this case - Next substitutes NEXT_PUBLIC_* by matching
+          // the literal text, so a dynamic read yields undefined in the browser.
+          url: `${typeof window === "undefined" ? env.publicAppUrl() : ""}/api/trpc`,
           transformer: superjson,
         }),
       ],

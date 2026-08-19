@@ -13,5 +13,7 @@ export * from "./errors";
 export * from "./resources/audit.contract";
 export * from "./resources/billing.contract";
 export * from "./resources/identity.contract";
+export * from "./resources/organization.contract";
 export * from "./resources/project.contract";
 export * from "./signing";
+export * from "./wire";

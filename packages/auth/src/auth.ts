@@ -15,7 +15,6 @@ import { createDb } from "@guardrail/db";
 import { env } from "@guardrail/env";
 import { HIGHEST_ROLE } from "@guardrail/registry";
 import { ac, roles } from "@guardrail/registry/access";
-import { autumn } from "autumn-js/better-auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
@@ -130,7 +129,25 @@ export const auth = betterAuth({
         return Promise.resolve();
       },
     }),
-    autumn(),
+    /**
+     * The Autumn better-auth plugin is deliberately NOT mounted, for two reasons that
+     * happen to point the same way.
+     *
+     * It does not load. `autumn-js@0.1.85` imports `createAuthEndpoint` from
+     * `better-auth/plugins`, and better-auth 1.7 moved that export to `better-auth/api`.
+     * The import throws at module evaluation, which takes this whole module with it - and
+     * with it every `/api/auth/*` route and `identify()`, which is the function the gateway
+     * calls first on every request. A version mismatch inside a plugin array was taking the
+     * entire product down, and typecheck could not see it because the types resolve fine.
+     *
+     * And it should not be mounted even once that is fixed. It mounts its own HTTP
+     * endpoints under /api/auth/autumn/*, which carry no role gate, no per-org rate limit,
+     * no plan gate and no audit row - the same reason eleven organisation endpoints are
+     * refused in superseded.ts. Billing already has a way in that goes through the block:
+     * `billing.manage`, declared at owner with `audit: true` in the registry, routed by
+     * billingRouter.checkout, and served by services/billing straight into the Autumn
+     * adapter. There is one adapter per vendor, and this was a second one.
+     */
     nextCookies(),
   ],
 });

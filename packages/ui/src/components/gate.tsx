@@ -21,7 +21,18 @@ import { PriceGate } from "./price-gate";
 export function Gate<K extends ResourceKey>({
   resource,
   operation,
-  fallback = null,
+  /**
+   * Deliberately NOT defaulted here.
+   *
+   * `fallback = null` looked harmless and cancelled the documented default of both
+   * children: FeatureGate and PriceGate each decide on `fallback === undefined`, and
+   * through this component the value was `null` on every render, so the branch that
+   * renders the registry's own upgrade copy was unreachable and `<Gate>` with no fallback
+   * silently rendered nothing where the upsell should have been. `React.ReactNode` already
+   * includes `undefined`, so leaving it absent forwards the state the children are testing
+   * for and costs nothing at the type level.
+   */
+  fallback,
   children,
 }: {
   resource: K;

@@ -31,5 +31,5 @@ export function AuthGate({
   const actual = useRole();
   // Ranked by the registry, never compared as strings. This is the only comparison here.
   const permitted = role === undefined || roleAtLeast(actual, role);
-  return permitted ? <>{children}</> : <>{fallback}</>;
+  return permitted ? children : fallback;
 }

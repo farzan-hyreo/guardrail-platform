@@ -9,6 +9,10 @@
  *        runs inside a try, and the service hands in a pre-signed refusal to send when it
  *        could not produce one itself - only the service holds the signing secret.
  * WHERE  services/<name>/src/index.ts
+ * NOTE   biome.json turns style/useNamingConvention off for THIS FILE. `durable_name`,
+ *        `filter_subject`, `ack_policy`, `max_deliver` and `ack_wait` are NATS JetStream's
+ *        own config keys and go over the wire verbatim. biome.json takes no comments, so
+ *        the reason lives here.
  */
 import "server-only";
 

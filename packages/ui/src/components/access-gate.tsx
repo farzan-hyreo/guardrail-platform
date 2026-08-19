@@ -34,5 +34,5 @@ export function AccessGate<K extends ResourceKey>({
   children: React.ReactNode;
 }) {
   const permitted = usePermission(resource, operation);
-  return permitted ? <>{children}</> : null;
+  return permitted ? children : null;
 }

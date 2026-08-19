@@ -7,12 +7,15 @@
  * WHERE  services/billing
  */
 
-import { PLAN_KEYS } from "@guardrail/registry";
+import { isResourceKey, PLAN_KEYS, type ResourceKey } from "@guardrail/registry";
 import { z } from "zod";
 
 export const entitlementsDto = z.object({
   plan: z.enum(PLAN_KEYS),
-  usage: z.record(z.string(), z.number()),
+  /** Keyed by ResourceKey, like the registry's own Entitlements - the wire must not widen
+   *  what the registry narrowed. `partialRecord`, not `record`: a resource with no usage
+   *  yet has no key, exactly as `Entitlements.usage` is `Partial<Record<...>>`. */
+  usage: z.partialRecord(z.custom<ResourceKey>(isResourceKey), z.number()),
 });
 
 export const billingContract = {
@@ -20,7 +23,18 @@ export const billingContract = {
     input: z.object({}),
     output: z.object({
       entitlements: entitlementsDto,
-      resources: z.array(z.object({ resource: z.string(), label: z.string(), usage: z.string() })),
+      /**
+       * `resource` is validated against the registry rather than typed as `string`, so the
+       * billing page can hand each row straight to <UsageMeter resource=…/> without a cast.
+       * Same pattern as `requestMeta.resource` in envelope.ts.
+       */
+      resources: z.array(
+        z.object({
+          resource: z.custom<ResourceKey>(isResourceKey),
+          label: z.string(),
+          usage: z.string(),
+        }),
+      ),
     }),
   },
   manage: {

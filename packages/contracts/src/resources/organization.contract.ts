@@ -12,6 +12,8 @@
 
 import { z } from "zod";
 
+import { wireDate } from "../wire";
+
 /**
  * Lowercase, hyphen-separated, no leading or trailing hyphen. The column is unique, so a
  * slug that survives this still has to survive the insert; this only keeps a request that
@@ -28,7 +30,7 @@ export const organizationDto = z.object({
   name: z.string(),
   slug: z.string(),
   logo: z.string().nullable(),
-  createdAt: z.date(),
+  createdAt: wireDate,
   /** How many people hold a seat. The Team page reads it without a second round trip. */
   memberCount: z.number().int(),
 });

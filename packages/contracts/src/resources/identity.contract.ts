@@ -10,13 +10,15 @@
 import { ORG_ROLES } from "@guardrail/registry";
 import { z } from "zod";
 
+import { wireDate } from "../wire";
+
 export const memberDto = z.object({
   id: z.string(),
   userId: z.string(),
   name: z.string(),
   email: z.string(),
   role: z.enum(ORG_ROLES),
-  createdAt: z.date(),
+  createdAt: wireDate,
 });
 
 export const memberContract = {
@@ -57,7 +59,7 @@ export const invitationContract = {
           email: z.string(),
           role: z.string().nullable(),
           status: z.string(),
-          expiresAt: z.date(),
+          expiresAt: wireDate,
         }),
       ),
     }),

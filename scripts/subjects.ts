@@ -3,7 +3,7 @@
  * Prints every subject the registry generates, grouped by the service that answers it.
  * A subject missing here means the registry is missing an operation.
  */
-import { RESOURCES, ROUTES, SERVICES, resourcesOwnedBy } from "../packages/registry/src/index";
+import { RESOURCES, ROUTES, resourcesOwnedBy, SERVICES } from "../packages/registry/src/index";
 
 for (const service of SERVICES) {
   console.info(`\n${service}`);

@@ -10,9 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@guardrail/registry": "workspace:*",
-    "autumn-js": "^0.1.30",
+    "@guardrail/contracts": "workspace:*",
     "@guardrail/env": "workspace:*",
+    "@guardrail/registry": "workspace:*",
+    "autumn-js": "^0.1.85",
     "server-only": "^0.0.1"
   },
   "devDependencies": {

@@ -17,8 +17,10 @@ import { AccessGate } from "@guardrail/ui/access-gate";
 import { Badge } from "@guardrail/ui/badge";
 import { Button } from "@guardrail/ui/button";
 import { Card, CardContent } from "@guardrail/ui/card";
+import { Denial } from "@guardrail/ui/denial";
+import { Gate } from "@guardrail/ui/gate";
 import { Input } from "@guardrail/ui/input";
-import { PriceGate, useUsageLabel } from "@guardrail/ui/price-gate";
+import { useUsageLabel } from "@guardrail/ui/price-gate";
 import { useViewer } from "@guardrail/ui/viewer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -73,41 +75,42 @@ export function MemberList({ initialItems }: { initialItems: Member[] }) {
           <h1 className="text-2xl font-semibold">Team</h1>
           <p className="text-sm text-muted-foreground">Seats {seats}</p>
         </div>
-        <AccessGate resource="member" operation="create">
-          <PriceGate resource="member">
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="name@company.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-56"
-              />
-              <select
-                aria-label="Role"
-                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={role}
-                onChange={(event) => setRole(normalizeRole(event.target.value))}
-              >
-                {grantableRoles.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <Button
-                disabled={email.trim().length === 0 || invite.isPending}
-                onClick={() => invite.mutate({ email: email.trim(), role })}
-              >
-                {invite.isPending ? "Inviting…" : "Invite"}
-              </Button>
-            </div>
-          </PriceGate>
-        </AccessGate>
+        {/* All three, in platform order. AccessGate alone hides; PriceGate alone renders
+            children when the reason is not_in_plan, so a plan that drops seats entirely
+            would have shown the invite form for an endpoint the gateway refuses. */}
+        <Gate resource="member" operation="create">
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-56"
+            />
+            <select
+              aria-label="Role"
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={role}
+              onChange={(event) => setRole(normalizeRole(event.target.value))}
+            >
+              {grantableRoles.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <Button
+              disabled={email.trim().length === 0 || invite.isPending}
+              onClick={() => invite.mutate({ email: email.trim(), role })}
+            >
+              {invite.isPending ? "Inviting…" : "Invite"}
+            </Button>
+          </div>
+        </Gate>
       </header>
 
-      {invite.error ? <p className="text-sm text-destructive">{invite.error.message}</p> : null}
-      {remove.error ? <p className="text-sm text-destructive">{remove.error.message}</p> : null}
+      <Denial error={invite.error} resource="member" />
+      <Denial error={remove.error} resource="member" />
 
       {/* create is a command, not an rpc: the seat appears once identity has executed it. */}
       {invite.isSuccess ? (

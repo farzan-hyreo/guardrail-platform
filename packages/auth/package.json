@@ -22,7 +22,6 @@
     "@guardrail/registry": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "better-auth": "^1.3.0",
-    "autumn-js": "^0.1.30",
     "@guardrail/env": "workspace:*",
     "server-only": "^0.0.1"
   },

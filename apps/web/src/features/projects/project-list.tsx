@@ -9,6 +9,7 @@
 import type { OutputOf } from "@guardrail/contracts";
 import { Button } from "@guardrail/ui/button";
 import { Card, CardContent } from "@guardrail/ui/card";
+import { Denial } from "@guardrail/ui/denial";
 import { Gate, useAccess } from "@guardrail/ui/gate";
 import { Input } from "@guardrail/ui/input";
 import { UpgradePrompt } from "@guardrail/ui/upgrade-prompt";
@@ -69,7 +70,7 @@ export function ProjectList({ initialItems }: { initialItems: Project[] }) {
         </Gate>
       </header>
 
-      {create.error ? <p className="text-sm text-destructive">{create.error.message}</p> : null}
+      <Denial error={create.error} resource="project" />
 
       <Card>
         <CardContent className="p-0">

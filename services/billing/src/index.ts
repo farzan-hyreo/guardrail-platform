@@ -73,7 +73,14 @@ async function main() {
       // needs a guard rather than a cast.
       if (!isOperationOf(meta.resource, meta.operation)) return;
       if (!ruleFor(meta.resource, meta.operation).consumes) return;
-      await billing.track({ organizationId: meta.orgId, resource: meta.resource, value: 1 });
+      await billing.track({
+        organizationId: meta.orgId,
+        resource: meta.resource,
+        value: 1,
+        /** Autumn's idempotency key. The consumer is at-least-once, so a redelivery
+         *  must count once - see the adapter's `track`. */
+        requestId: meta.requestId,
+      });
     }),
   });
   console.info("[billing] metering evt.>");

@@ -12,7 +12,10 @@
     "./feature-gate": "./src/components/feature-gate.tsx",
     "./price-gate": "./src/components/price-gate.tsx",
     "./upgrade-prompt": "./src/components/upgrade-prompt.tsx",
-    "./viewer": "./src/components/viewer.tsx"
+    "./viewer": "./src/components/viewer.tsx",
+    "./denial": "./src/components/denial.tsx",
+    "./usage-meter": "./src/components/usage-meter.tsx",
+    "./plan-badge": "./src/components/plan-badge.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -22,7 +25,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "@guardrail/contracts": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0"

@@ -3,7 +3,7 @@
  * Prints the Autumn features and product limits the registry implies. Keeps the direction
  * of truth honest: the registry decides, Autumn is configured to match.
  */
-import { PLANS, PLAN_KEYS, RESOURCES, RESOURCE_KEYS } from "../packages/registry/src/index";
+import { PLAN_KEYS, PLANS, RESOURCE_KEYS, RESOURCES } from "../packages/registry/src/index";
 
 const metered = RESOURCE_KEYS.filter((key) => RESOURCES[key].featureId !== null);
 

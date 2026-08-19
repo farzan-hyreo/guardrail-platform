@@ -4,7 +4,7 @@
  * WHY    Optimistic UI needs consistent stale times and one superjson boundary.
  * WHERE  trpc/react.tsx, trpc/server.ts
  */
-import { QueryClient, defaultShouldDehydrateQuery } from "@tanstack/react-query";
+import { defaultShouldDehydrateQuery, QueryClient } from "@tanstack/react-query";
 import superjson from "superjson";
 
 export function createQueryClient() {

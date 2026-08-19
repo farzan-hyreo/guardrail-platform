@@ -38,7 +38,7 @@
     },
     {
       "path": "./tools/grit/no-process-env.grit",
-      "includes": ["**/*.ts", "!**/packages/env/**", "!**/drizzle.config.ts"]
+      "includes": ["**/*.ts", "**/*.tsx", "!**/packages/env/**", "!**/drizzle.config.ts"]
     },
     {
       "path": "./tools/grit/require-server-only.grit",
@@ -113,7 +113,8 @@
                   "server-only": "This package is client-safe and must stay that way.",
                   "@guardrail/db": "This package is client-safe and must stay that way.",
                   "@guardrail/env": "This package is client-safe and must stay that way.",
-                  "@guardrail/transport": "This package is client-safe and must stay that way."
+                  "@guardrail/transport": "This package is client-safe and must stay that way.",
+                  "@guardrail/contracts": "Import @guardrail/contracts/errors. The barrel re-exports envelope.ts and signing.ts, which import node:crypto, so a value import from it pulls node:crypto into the browser bundle."
                 }
               }
             }
@@ -293,6 +294,56 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**/drizzle.config.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "useLiteralKeys": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/contracts/src/errors.ts",
+        "packages/billing/src/autumn.adapter.ts",
+        "packages/transport/src/serve.ts",
+        "packages/transport/src/streams.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/web/src/app/**/page.tsx"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "useLiteralKeys": "off"
+          }
+        }
+      }
     }
-  ]
+  ],
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
 }

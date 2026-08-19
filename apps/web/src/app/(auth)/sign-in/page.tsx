@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-
 import { signIn } from "@guardrail/auth/client";
 import { Button } from "@guardrail/ui/button";
 import { Input } from "@guardrail/ui/input";
+import { useState } from "react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");

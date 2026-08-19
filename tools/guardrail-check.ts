@@ -284,7 +284,18 @@ function checkRouterProperty(
 }
 
 function noBusinessLogicInGateway(file: string, tree: ts.SourceFile): void {
-  if (!/gateway[/\\]routers[/\\]/.test(file)) return;
+  /**
+   * No path filter, deliberately.
+   *
+   * This used to return early unless the file lived under `gateway/routers/`, which made
+   * the rule opt-in by directory: a router declared anywhere else - in `features/`, in a
+   * new `api/` folder, or in `gateway/init.ts` itself - and then referenced from `_app.ts`
+   * was never examined at all. Moving a file was a way to disarm the check.
+   *
+   * The rule keys on `createTRPCRouter`, so it needs no filter: it fires exactly where a
+   * router is declared and is silent everywhere else. That is what makes dropping the guard
+   * safe rather than noisy.
+   */
   const imported = importedBindings(tree);
   const visit = (node: ts.Node): void => {
     if (
@@ -321,6 +332,63 @@ function noBusinessLogicInGateway(file: string, tree: ts.SourceFile): void {
  * check gets loosened away.
  */
 const ORG_ID_ALIAS = /^(?:org|organization|organisation|tenant)id$/;
+
+/**
+ * The primitives that mint or dispatch an authorisation decision.
+ *
+ * `ENVELOPE_SECRET` is the same value in the gateway and in every service - that is a
+ * documented trade-off - and its consequence is that bytes signed anywhere are bytes every
+ * service accepts as the gateway's own decision. `signRequest` is exported from
+ * @guardrail/contracts, which every service depends on, so six lines inside a handler mint
+ * an envelope naming any org id and the owner role. `rpcRequest` and `publishCommand` do
+ * the same for dispatch. `publicProcedure` is the fifth: a procedure built on it directly
+ * never reaches `dispatch`, so it carries no identity, role, permission, rate limit, plan
+ * gate or audit row - every one of the eleven gates, skipped, in one line.
+ *
+ * The bus ACLs in infra/nats/auth.conf are a real second line of defence here, and they are
+ * why this is a hardening rule rather than an open door. But they are one generated file
+ * away from being wrong, and they do not constrain the gateway process itself.
+ */
+const GATEWAY_ONLY_PRIMITIVES = new Set([
+  "signRequest",
+  "signEvent",
+  "signedEnvelopeFor",
+  "rpcRequest",
+  "publishCommand",
+  "publicProcedure",
+]);
+
+/**
+ * Where each primitive is defined or legitimately used, by path. Named explicitly rather
+ * than matched by pattern: an exemption that is a regex is an exemption somebody widens.
+ */
+const PRIMITIVE_HOMES: readonly string[] = [
+  join("apps", "web", "src", "gateway"),
+  join("packages", "guardrail", "src"),
+  join("packages", "transport", "src"),
+  join("packages", "contracts", "src"),
+  join("tools", "guardrail-check.ts"),
+  join("tests"),
+];
+
+function noGatewayPrimitivesOutsideTheGateway(file: string, tree: ts.SourceFile): void {
+  if (PRIMITIVE_HOMES.some((home) => file.includes(home))) return;
+  for (const statement of tree.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings === undefined || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const imported = (element.propertyName ?? element.name).text;
+      if (!GATEWAY_ONLY_PRIMITIVES.has(imported)) continue;
+      report(
+        file,
+        lineOfNode(tree, element),
+        "gateway-only-primitive",
+        `'${imported}' mints or dispatches an authorisation decision, and the envelope secret is shared with every service - so a decision signed here is indistinguishable from one the gateway made. It may only be used inside apps/web/src/gateway. Route the call through dispatch() instead.`,
+      );
+    }
+  }
+}
 
 function isOrgIdName(name: string): boolean {
   return ORG_ID_ALIAS.test(name.replace(/[_\- ]/g, "").toLowerCase());
@@ -443,10 +511,39 @@ const RAW_SUBJECT = new RegExp(
   "g",
 );
 
-function noRawSubjects(file: string, source: string): void {
+/**
+ * The source with every comment blanked out, preserving length so reported line numbers
+ * still point at the right place.
+ *
+ * Without this the rule reads prose. A doc comment that says the gateway publishes to
+ * `rpc.project.update` was reported as a hand-built subject, which is a false positive with
+ * a real cost: the cheapest way to silence it is to reword the sentence, so the rule ends up
+ * training people to write worse comments while the code it exists to catch is untouched.
+ * Blanking rather than deleting keeps every offset identical, so `lineOf` needs no change.
+ */
+function withoutComments(source: string): string {
+  const out = source.split("");
+  const scanner = ts.createScanner(ts.ScriptTarget.ESNext, false, ts.LanguageVariant.JSX, source);
+  for (;;) {
+    const token = scanner.scan();
+    if (token === ts.SyntaxKind.EndOfFileToken) break;
+    if (
+      token === ts.SyntaxKind.SingleLineCommentTrivia ||
+      token === ts.SyntaxKind.MultiLineCommentTrivia
+    ) {
+      for (let index = scanner.getTokenStart(); index < scanner.getTokenEnd(); index += 1) {
+        if (out[index] !== "\n") out[index] = " ";
+      }
+    }
+  }
+  return out.join("");
+}
+
+function noRawSubjects(file: string, rawSource: string): void {
   if (/packages[/\\](registry|transport)[/\\]/.test(file)) return;
   // The one file that must contain the pattern it searches for.
   if (file.endsWith(join("tools", "guardrail-check.ts"))) return;
+  const source = withoutComments(rawSource);
   for (const match of source.matchAll(RAW_SUBJECT)) {
     report(
       file,
@@ -856,6 +953,7 @@ for (const directory of SCANNED) {
     const tree = parse(file, next);
     noCrossServiceImport(file, tree);
     noBusinessLogicInGateway(file, tree);
+    noGatewayPrimitivesOutsideTheGateway(file, tree);
     contractInputs(file, tree);
     noRawSubjects(file, next);
     noDataInDerive(file, next);

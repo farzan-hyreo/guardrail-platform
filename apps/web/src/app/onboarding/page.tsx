@@ -2,6 +2,7 @@
 
 import { organization } from "@guardrail/auth/client";
 import { Button } from "@guardrail/ui/button";
+import { Denial } from "@guardrail/ui/denial";
 import { Input } from "@guardrail/ui/input";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -41,9 +42,7 @@ export default function OnboardingPage() {
         Projects, plans and teammates all belong to an organisation.
       </p>
       <Input placeholder="Acme" value={name} onChange={(e) => setName(e.target.value)} />
-      {create.error === null ? null : (
-        <p className="text-sm text-destructive">{create.error.message}</p>
-      )}
+      <Denial error={create.error} resource="organization" />
       <Button
         disabled={name.length < 2 || create.isPending}
         onClick={() => create.mutate({ name, slug: slugify(name) })}

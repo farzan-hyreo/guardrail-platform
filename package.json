@@ -11,7 +11,8 @@
     "start": "turbo run start",
     "lint": "biome lint .",
     "typecheck": "turbo run typecheck",
-    "verify": "pnpm typecheck && pnpm check && pnpm guardrail",
+    "verify": "pnpm typecheck && pnpm check && pnpm guardrail && pnpm test",
+    "test": "tsx tests/registry-derive.test.ts && tsx tests/contract-wire.test.ts && tsx --conditions=react-server tests/denial-channel.test.ts",
     "infra:up": "docker compose -f infra/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f nats",
@@ -33,6 +34,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
+    "@trpc/server": "^11.0.0",
+    "superjson": "^2.2.2",
     "tsx": "^4.19.0",
     "turbo": "^2.3.0",
     "typescript": "^5.9.0"

@@ -34,7 +34,10 @@ export type Limit = number | "unlimited" | false;
  * the package is built with this, so there is one place to audit rather than a cast at
  * each call site.
  */
-export function fromKeys<K extends string, V>(keys: readonly K[], map: (key: K) => V): Record<K, V> {
+export function fromKeys<K extends string, V>(
+  keys: readonly K[],
+  map: (key: K) => V,
+): Record<K, V> {
   const out: Partial<Record<K, V>> = {};
   for (const key of keys) out[key] = map(key);
   return out as Record<K, V>;

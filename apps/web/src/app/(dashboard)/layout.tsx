@@ -7,12 +7,12 @@
  * HOW    proxy.ts sets x-pathname; the registry maps path to resource; the same functions
  *        the gateway uses decide whether to render.
  */
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 import { identify } from "@guardrail/auth";
-import { navAccess, permissionsForRole, resourceForPath, visibleNav } from "@guardrail/registry";
+import { navAccess, navFor, permissionsForRole, resourceForPath } from "@guardrail/registry";
 import { ViewerProvider } from "@guardrail/ui/viewer";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { Sidebar } from "@/components/sidebar";
 import { gatewayDeps } from "@/gateway/deps";
@@ -37,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <ViewerProvider value={{ entitlements, permissions, role: identity.role }}>
       <div className="flex min-h-dvh">
-        <Sidebar items={visibleNav(identity.role, entitlements)} plan={entitlements.plan} />
+        <Sidebar items={navFor(identity.role, entitlements)} plan={entitlements.plan} />
         <main className="flex-1 px-8 py-8">{children}</main>
       </div>
     </ViewerProvider>

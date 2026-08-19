@@ -398,6 +398,15 @@ export const NAV_ITEMS: readonly NavItem[] = RESOURCE_KEYS.flatMap((resource) =>
   return nav === null ? [] : [{ ...nav, resource }];
 }).sort((a, b) => a.order - b.order);
 
+/**
+ * Where the registry put billing. Derived once, because three client components were each
+ * running this same `find` by hand - and a route written by hand three times is a route
+ * that will be wrong in two of them the day it moves.
+ */
+export const BILLING_HREF: string | undefined = NAV_ITEMS.find(
+  (item) => item.resource === "billing",
+)?.href;
+
 /** Longest-prefix match, so /projects/abc still resolves to the project resource. */
 export function resourceForPath(pathname: string): ResourceKey | null {
   let match: NavItem | null = null;
@@ -433,4 +442,21 @@ export function navAccess(
 
 export function visibleNav(role: OrgRole, entitlements: Entitlements): readonly NavItem[] {
   return NAV_ITEMS.filter((item) => navAccess(item.resource, role, entitlements).visible);
+}
+
+export type NavEntryAccess = NavItem & NavAccess;
+
+/**
+ * Every nav item the role may see, each still carrying whether the plan includes it.
+ *
+ * `visibleNav` computes `locked` and then throws it away, so the sidebar rendered a locked
+ * item identically to an unlocked one: a free-plan admin saw "Audit log", clicked it, and
+ * was redirected to billing with no explanation. The distinction the type already draws was
+ * being discarded one line after it was made.
+ */
+export function navFor(role: OrgRole, entitlements: Entitlements): readonly NavEntryAccess[] {
+  return NAV_ITEMS.map((item) => ({
+    ...item,
+    ...navAccess(item.resource, role, entitlements),
+  })).filter((item) => item.visible);
 }

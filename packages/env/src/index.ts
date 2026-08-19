@@ -28,6 +28,89 @@ function optional(name: string): string | null {
 }
 
 /**
+ * The shortest secret worth calling one. 32 bytes of base64 is 44 characters; 32 is the
+ * floor rather than the target, so a hand-typed passphrase is refused without rejecting a
+ * legitimate key that happens to be encoded differently.
+ */
+const MIN_SECRET_LENGTH = 32;
+
+/**
+ * Values that have been published to a git repository and must never authenticate anything.
+ * Every entry is a literal that has shipped in `.env.example`, plus the words people reach
+ * for when they mean "fill this in later".
+ *
+ * Substring matching, not equality: `required()` already accepted
+ * "generate-with-openssl-rand-base64-32" verbatim, and somebody appending "-prod" to it
+ * should not buy their way past this check.
+ *
+ * Deliberately NOT on this list: "secret", "password", "key". They are generic enough to
+ * occur inside a legitimate operator-chosen value, and every entry here hard-fails a
+ * production boot - a deny-list that grounds a healthy deployment is worse than the hole it
+ * closes. Low-quality-but-not-published values are caught by `distinctCharacters` below
+ * instead, which measures the value rather than guessing at its wording.
+ */
+const PLACEHOLDER_FRAGMENTS: readonly string[] = [
+  "generate-with-openssl",
+  "changeme",
+  "change-me",
+  "replace-me",
+  "placeholder",
+  "insecure",
+  "dev-only",
+  "xxxx",
+];
+
+/**
+ * How many different characters the value uses. 32 bytes from a CSPRNG, base64-encoded,
+ * lands around 30-40 distinct characters; a repeated character, a keyboard walk or a short
+ * phrase padded to length lands far below. Ten is chosen to sit clearly under any real key
+ * and clearly over "aaaaaaaa..." - it is a floor against obviously-not-random input, not an
+ * entropy estimate, and it is not doing security work on its own.
+ */
+function distinctCharacters(value: string): number {
+  return new Set(value).size;
+}
+
+const MIN_DISTINCT_CHARACTERS = 10;
+
+/**
+ * A secret, not merely a value that is present.
+ *
+ * `required()` is the right check for a URL and the wrong one for a key: it accepted the
+ * literal shipped in `.env.example`, so a deployment that copied the file and filled in
+ * everything except this line booted with a published secret. For BETTER_AUTH_SECRET that
+ * is remote session forgery needing no bus access at all; for ENVELOPE_SECRET it is the
+ * ability to mint an envelope naming any org id and any role, which is every gate in the
+ * platform at once.
+ *
+ * Enforced in production only. Failing this in development would refuse the very
+ * `.env.example` the getting-started path tells you to copy, so it warns there instead -
+ * loudly, and on every boot, because a warning nobody sees is the same as no check. The
+ * pattern mirrors `natsNkeySeed` twelve lines below, which already treats production as the
+ * environment where a missing credential is fatal.
+ */
+function requireSecret(name: string): string {
+  const value = requireValue(name, process.env[name]);
+  const lowered = value.toLowerCase();
+  const matched = PLACEHOLDER_FRAGMENTS.find((fragment) => lowered.includes(fragment));
+  const problem =
+    matched !== undefined
+      ? `it contains "${matched}", which means it came from .env.example rather than from a generator`
+      : value.length < MIN_SECRET_LENGTH
+        ? `it is ${String(value.length)} characters; a real key is at least ${String(MIN_SECRET_LENGTH)}`
+        : distinctCharacters(value) < MIN_DISTINCT_CHARACTERS
+          ? `it uses only ${String(distinctCharacters(value))} distinct characters, so it was typed rather than generated`
+          : null;
+
+  if (problem === null) return value;
+
+  const advice = `${name} is not a usable secret: ${problem}. Generate one with \`openssl rand -base64 32\`.`;
+  if (process.env["NODE_ENV"] === "production") throw new Error(advice);
+  console.warn(`[env] ${advice}`);
+  return value;
+}
+
+/**
  * The one variable that reaches the browser, and the only one whose key is written out in
  * full. Next substitutes `NEXT_PUBLIC_*` into the client bundle by matching the literal text
  * of the key - `getNextPublicEnvironmentVariables` in next/dist/lib/static-env.js emits one
@@ -47,7 +130,7 @@ function publicAppUrl(): string {
 
 export const env = {
   /** Same value in the gateway and every service, or services reject every envelope. */
-  envelopeSecret: (): string => required("ENVELOPE_SECRET"),
+  envelopeSecret: (): string => requireSecret("ENVELOPE_SECRET"),
   databaseUrl: (): string => required("DATABASE_URL"),
   natsUrl: (): string => optional("NATS_URL") ?? "nats://localhost:4222",
   /** Names the NATS credential this process holds. See infra/nats/auth.conf. */
@@ -67,7 +150,7 @@ export const env = {
   publicAppUrl,
   /** The server-side name for the same read, so the two can never drift apart. */
   appUrl: publicAppUrl,
-  betterAuthSecret: (): string => required("BETTER_AUTH_SECRET"),
+  betterAuthSecret: (): string => requireSecret("BETTER_AUTH_SECRET"),
   autumnSecretKey: (): string | null => optional("AUTUMN_SECRET_KEY"),
   upstash: (): { url: string; token: string } | null => {
     const url = optional("UPSTASH_REDIS_REST_URL");

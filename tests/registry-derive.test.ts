@@ -9,7 +9,11 @@
  */
 import assert from "node:assert/strict";
 
-import { assignableRoles, checkResourceAccess, normalizeRole } from "../packages/registry/src/index";
+import {
+  assignableRoles,
+  checkResourceAccess,
+  normalizeRole,
+} from "../packages/registry/src/index";
 
 type Check = { name: string; run: () => void };
 

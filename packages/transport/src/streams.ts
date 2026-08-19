@@ -5,6 +5,8 @@
  *        with different retention is a Friday-night incident.
  * HOW    `pnpm nats:bootstrap` after `make up`, and in CI before integration tests.
  * WHERE  scripts/bootstrap-streams.ts
+ * NOTE   biome.json turns style/useNamingConvention off for THIS FILE, for the same reason
+ *        as serve.ts: these are JetStream's own snake_case config keys, sent verbatim.
  */
 import "server-only";
 
